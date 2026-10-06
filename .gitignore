@@ -1,0 +1,25 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Secret environment variables - NEVER commit these
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Local database files
+*.db
+*.sqlite3
+
+# Vector database storage (used later in RAG phase)
+chroma_data/
+
+# Uploaded files (used later)
+uploads/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
