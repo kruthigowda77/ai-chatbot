@@ -1,0 +1,163 @@
+/* ===== Color palette: change these to restyle the whole app ===== */
+:root {
+    --bg: #eef0f5;
+    --panel: #ffffff;
+    --primary: #4f46e5;
+    --primary-dark: #4338ca;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --bot-bubble: #f1f3f7;
+    --border: #e5e7eb;
+}
+
+/* ===== Reset browser default spacing ===== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh; /* better height on mobile browsers */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ===== The chat window ===== */
+.chat-app {
+    width: 100%;
+    max-width: 760px;
+    height: 100%;
+    background: var(--panel);
+    display: flex;
+    flex-direction: column; /* stack header, messages, input vertically */
+}
+
+/* On larger screens, show the chat as a rounded card */
+@media (min-width: 800px) {
+    .chat-app {
+        height: 90vh;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+}
+
+/* ===== Header ===== */
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--primary);
+    color: white;
+}
+
+.bot-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.chat-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.status {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+/* ===== Messages area ===== */
+.messages {
+    flex: 1;            /* take all the space between header and input */
+    overflow-y: auto;   /* scroll when messages overflow */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message {
+    display: flex;
+}
+
+.message.user {
+    justify-content: flex-end; /* push user messages to the right */
+}
+
+.bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    line-height: 1.5;
+    white-space: pre-wrap;     /* keep line breaks from the text */
+    overflow-wrap: anywhere;   /* break very long words or links */
+}
+
+.message.bot .bubble {
+    background: var(--bot-bubble);
+    border-bottom-left-radius: 4px;
+}
+
+.message.user .bubble {
+    background: var(--primary);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+/* ===== Input area ===== */
+.chat-input {
+    display: flex;
+    gap: 10px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.chat-input textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 15px;
+    max-height: 150px;
+    outline: none;
+}
+
+.chat-input textarea:focus {
+    border-color: var(--primary);
+}
+
+.chat-input button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0 22px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.chat-input button:hover {
+    background: var(--primary-dark);
+}
+
+.chat-input button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
