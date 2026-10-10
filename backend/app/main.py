@@ -1,11 +1,13 @@
 """
-main.py - The FastAPI web server. Defines the API endpoints.
+main.py - The FastAPI web server. Defines the API endpoints
+and serves the frontend.
 
 Run from the backend folder with:
     uvicorn app.main:app --reload
 """
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.schemas import ChatRequest, ChatResponse
@@ -34,3 +36,11 @@ def chat(request: ChatRequest):
     messages = [{"role": "user", "content": request.message}]
     reply = get_ai_reply(messages)
     return ChatResponse(reply=reply)
+
+
+# ===== Serve the frontend =====
+# The frontend folder sits next to the backend folder.
+# This MUST stay at the bottom of the file: routes are matched in order,
+# so the /api endpoints above get the first chance to handle a request.
+FRONTEND_DIR = config.BACKEND_DIR.parent / "frontend"
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

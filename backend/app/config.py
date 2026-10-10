@@ -29,7 +29,7 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL") or None  # empty text becomes None
 if not LLM_API_KEY or LLM_API_KEY == "your-api-key-here":
     raise RuntimeError(
         f"LLM_API_KEY is missing. Make sure the file {ENV_FILE} exists "
-        "and contains a line like: LLM_API_KEY=sk-proj-..."
+         "and contains your real key, like: LLM_API_KEY=AIza... (Gemini) or sk-proj-... (OpenAI)"
     )
 
 
