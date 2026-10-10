@@ -43,3 +43,16 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     f"sqlite:///{(BACKEND_DIR / 'chatbot.db').as_posix()}",
 )
+
+# ===== Login security =====
+# Signs login tokens. Must be long and random, and never shared.
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+if len(JWT_SECRET_KEY) < 32:
+    raise RuntimeError(
+        "JWT_SECRET_KEY is missing or too short. Generate one with:\n"
+        '  python -c "import secrets; print(secrets.token_hex(32))"\n'
+        f"and add it to {ENV_FILE} as JWT_SECRET_KEY=..."
+    )
+
+# How long a login lasts before the user must log in again (default: 24 hours)
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))

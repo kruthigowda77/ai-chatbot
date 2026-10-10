@@ -1,8 +1,7 @@
 """
 chat_store.py - All database reads and writes for conversations and messages.
 
-Keeping database code here (instead of inside the endpoints) means the
-endpoints stay short, and this logic can be reused and tested on its own.
+Every lookup includes the user's ID, so users can only ever reach their own chats.
 """
 
 from sqlalchemy import select
@@ -15,43 +14,48 @@ TITLE_MAX_LENGTH = 50
 
 def make_title(first_message: str) -> str:
     """Turn the first message into a short title for the conversation."""
-    text = " ".join(first_message.split())  # collapse extra spaces and line breaks
+    text = " ".join(first_message.split())
     if len(text) <= TITLE_MAX_LENGTH:
         return text
     return text[: TITLE_MAX_LENGTH - 3].rstrip() + "..."
 
 
-def create_conversation(db: Session, first_message: str) -> Conversation:
-    conversation = Conversation(title=make_title(first_message))
+def create_conversation(db: Session, user_id: int, first_message: str) -> Conversation:
+    conversation = Conversation(user_id=user_id, title=make_title(first_message))
     db.add(conversation)
     db.commit()
     return conversation
 
 
-def get_conversation(db: Session, conversation_id: str) -> Conversation | None:
-    """Return the conversation, or None if it doesn't exist."""
-    return db.get(Conversation, conversation_id)
+def get_conversation(db: Session, conversation_id: str, user_id: int) -> Conversation | None:
+    """The conversation, only if it belongs to this user. Otherwise None."""
+    statement = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user_id,
+    )
+    return db.scalar(statement)
 
 
-def list_conversations(db: Session) -> list[Conversation]:
-    """All conversations, most recently active first."""
-    statement = select(Conversation).order_by(Conversation.updated_at.desc())
+def list_conversations(db: Session, user_id: int) -> list[Conversation]:
+    """This user's conversations, most recently active first."""
+    statement = (
+        select(Conversation)
+        .where(Conversation.user_id == user_id)
+        .order_by(Conversation.updated_at.desc())
+    )
     return list(db.scalars(statement))
 
 
 def load_recent_messages(db: Session, conversation_id: str, limit: int) -> list[dict]:
-    """
-    The last `limit` messages of a conversation, oldest first,
-    in the format the AI expects: [{"role": ..., "content": ...}, ...]
-    """
+    """The last `limit` messages of a conversation, oldest first."""
     statement = (
         select(Message)
         .where(Message.conversation_id == conversation_id)
-        .order_by(Message.id.desc())  # newest first, so LIMIT keeps the most recent
+        .order_by(Message.id.desc())
         .limit(limit)
     )
     recent = list(db.scalars(statement))
-    recent.reverse()  # back to oldest first
+    recent.reverse()
     return [{"role": m.role, "content": m.content} for m in recent]
 
 
@@ -64,9 +68,9 @@ def save_exchange(db: Session, conversation_id: str, user_text: str, reply: str)
 
     conversation = db.get(Conversation, conversation_id)
     if conversation is not None:
-        conversation.updated_at = utc_now()  # moves it to the top of the list
+        conversation.updated_at = utc_now()
 
-    db.commit()  # both messages are saved together, or neither is
+    db.commit()
 
 
 def rename_conversation(db: Session, conversation: Conversation, title: str) -> Conversation:
@@ -76,5 +80,5 @@ def rename_conversation(db: Session, conversation: Conversation, title: str) -> 
 
 
 def delete_conversation(db: Session, conversation: Conversation) -> None:
-    db.delete(conversation)  # its messages are deleted too (cascade)
+    db.delete(conversation)
     db.commit()

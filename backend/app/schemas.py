@@ -76,3 +76,31 @@ class ConversationRename(BaseModel):
     """Body for renaming a conversation."""
 
     title: str = Field(..., min_length=1, max_length=200)
+    
+
+# ===== Accounts =====
+
+USERNAME_PATTERN = r"^[A-Za-z0-9_.-]+$"  # letters, numbers, underscore, dot, hyphen
+
+
+class AuthRequest(BaseModel):
+    """Body for register and login."""
+
+    username: str = Field(..., min_length=3, max_length=30, pattern=USERNAME_PATTERN)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class TokenResponse(BaseModel):
+    """Sent back after a successful register or login."""
+
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+
+
+class UserOut(BaseModel):
+    """Public information about a user (never the password hash)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    username: str

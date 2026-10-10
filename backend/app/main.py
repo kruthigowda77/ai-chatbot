@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.db.database import init_db
-from app.routes import chat, conversations
+from app.routes import auth, chat, conversations
 from app.services.llm import LLMServiceError
 
 # ===== Logging setup =====
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Chatbot API",
     description="Backend for a full-stack AI chatbot.",
-    version="0.6.0",
+    version="0.7.0",
     lifespan=lifespan,
 )
 
@@ -70,6 +70,7 @@ def health_check():
     return {"status": "ok", "model": config.LLM_MODEL}
 
 
+app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(conversations.router)
 
