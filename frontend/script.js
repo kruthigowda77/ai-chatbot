@@ -1,4 +1,4 @@
-console.log("script.js v5 loaded (with typing indicator)");
+console.log("script.js v6 loaded (with markdown)");
 
 // ===== Find the page elements we need (using the ids from index.html) =====
 const messagesEl = document.getElementById("messages");
@@ -14,23 +14,80 @@ const API_URL = "/api/chat/stream";
 const REQUEST_TIMEOUT_MS = 60000;
 
 // ===== Conversation memory =====
-// Every successful exchange is stored here, oldest first.
-// It lives in the browser's memory, so it resets when the page is refreshed.
 const history = [];
 const MAX_HISTORY_MESSAGES = 20; // must match the backend
 
 
+// ===== Markdown setup =====
+// marked and DOMPurify are loaded from a CDN in index.html.
+// If they failed to load (e.g. no internet), we fall back to plain text.
+const markdownReady = typeof marked !== "undefined" && typeof DOMPurify !== "undefined";
+
+if (markdownReady) {
+    // gfm: GitHub-style Markdown (tables etc.); breaks: single newlines become line breaks
+    marked.use({ gfm: true, breaks: true });
+
+    // After sanitizing, make every link open in a new tab, safely.
+    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+        if (node.tagName === "A") {
+            node.setAttribute("target", "_blank");
+            node.setAttribute("rel", "noopener noreferrer");
+        }
+    });
+} else {
+    console.warn("Markdown libraries not loaded - showing replies as plain text.");
+}
+
+
+// Show bot text in a bubble: as safe formatted HTML if possible, otherwise plain text.
+function renderBotText(bubble, text) {
+    if (markdownReady) {
+        bubble.classList.add("markdown");
+        const unsafeHtml = marked.parse(text);           // Markdown -> HTML
+        bubble.innerHTML = DOMPurify.sanitize(unsafeHtml); // remove anything dangerous
+    } else {
+        bubble.textContent = text;
+    }
+}
+
+
+// Add a "Copy" button to every code block inside a bubble.
+function addCopyButtons(bubble) {
+    bubble.querySelectorAll("pre").forEach((pre) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "copy-button";
+        button.textContent = "Copy";
+
+        button.addEventListener("click", async () => {
+            const code = pre.querySelector("code");
+            const textToCopy = code ? code.innerText : pre.innerText;
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                button.textContent = "Copied!";
+            } catch {
+                button.textContent = "Failed";
+            }
+            setTimeout(() => (button.textContent = "Copy"), 1500);
+        });
+
+        pre.appendChild(button);
+    });
+}
+
+
 // ===== Add a message bubble to the chat; returns the bubble element =====
+// Used for user messages and errors: always plain text (textContent).
 function addMessage(text, sender, isError = false) {
     const messageEl = document.createElement("div");
     messageEl.className = `message ${sender}`;
     if (isError) {
-        messageEl.classList.add("error"); // styled red in style.css
+        messageEl.classList.add("error");
     }
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = text; // textContent (not innerHTML) keeps it safe
+    bubble.textContent = text;
 
     messageEl.appendChild(bubble);
     messagesEl.appendChild(messageEl);
@@ -47,7 +104,7 @@ function addTypingIndicator() {
     const dots = document.createElement("div");
     dots.className = "typing-indicator";
     dots.setAttribute("role", "status");
-    dots.setAttribute("aria-label", "AI is typing"); // read aloud by screen readers
+    dots.setAttribute("aria-label", "AI is typing");
 
     for (let i = 0; i < 3; i++) {
         dots.appendChild(document.createElement("span"));
@@ -59,7 +116,6 @@ function addTypingIndicator() {
 }
 
 
-// Remove a whole message (used to remove the typing bubble if an error happens)
 function removeMessage(bubble) {
     bubble.parentElement.remove();
 }
@@ -95,9 +151,7 @@ async function getErrorMessage(response) {
 
 
 // ===== Send a message and stream the reply into a bubble =====
-// Returns the complete reply text once streaming finishes.
 async function streamMessage(text) {
-    // Show the dots right away, before anything comes back
     const bubble = addTypingIndicator();
     setStatus("Typing...");
 
@@ -114,7 +168,7 @@ async function streamMessage(text) {
                 signal: controller.signal,
             });
         } catch (error) {
-            removeMessage(bubble); // take the dots away before showing the error
+            removeMessage(bubble);
             if (error.name === "AbortError") {
                 throw new Error("The request took too long. Please try again.");
             }
@@ -139,15 +193,15 @@ async function streamMessage(text) {
 
                 fullReply += decoder.decode(value, { stream: true });
 
-                // Setting textContent replaces everything inside the bubble,
-                // so the first piece of text automatically removes the dots.
-                bubble.textContent = fullReply;
+                // Re-render the whole reply so far as formatted Markdown.
+                // (This also replaces the typing dots on the first piece.)
+                renderBotText(bubble, fullReply);
                 scrollToBottom();
             }
         } catch (error) {
             console.error("Stream reading error:", error);
             fullReply += "\n\n[The connection was interrupted.]";
-            bubble.textContent = fullReply;
+            renderBotText(bubble, fullReply);
         }
 
         if (!fullReply.trim()) {
@@ -156,9 +210,13 @@ async function streamMessage(text) {
             return null;
         }
 
+        // Streaming is finished: now it's safe to add Copy buttons.
+        // (Adding them earlier would be wiped out by the next re-render.)
+        addCopyButtons(bubble);
+        scrollToBottom();
+
         return fullReply;
     } finally {
-        // Whatever happened (success or error), the bot is no longer typing
         setStatus("Online");
     }
 }
