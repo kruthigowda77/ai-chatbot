@@ -1,6 +1,7 @@
 # AI Chatbot
 
 A full-stack AI chatbot built from scratch with a **Python FastAPI** backend, a **vanilla JavaScript** frontend, and an LLM API (Google Gemini by default, or OpenAI). Supports multi-turn conversations, input validation, layered error handling, and automated tests.
+   ![Chatbot screenshot](docs/screenshot.png)
 
 ## Features
 
