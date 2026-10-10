@@ -202,3 +202,13 @@ def test_list_rename_and_delete_conversations(fake_ai):
 
     assert client.delete(f"/api/conversations/{first_id}").status_code == 204
     assert client.get(f"/api/conversations/{first_id}").status_code == 404
+    
+    
+
+def test_timestamps_include_timezone(fake_ai):
+    client.post("/api/chat", json={"message": "Hi"})
+
+    updated_at = client.get("/api/conversations").json()[0]["updated_at"]
+
+    # "Z" or "+00:00" both mean UTC; without one, browsers would guess wrong
+    assert updated_at.endswith("Z") or updated_at.endswith("+00:00")

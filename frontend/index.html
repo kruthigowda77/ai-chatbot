@@ -4,44 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chatbot</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
     <div class="chat-app">
 
-        <!-- Top bar with the bot's name -->
-        <header class="chat-header">
-            <div class="bot-avatar">🤖</div>
-            <div>
-                <h1>AI Assistant</h1>
-                <p class="status" id="status">Online</p>
+        <!-- Sidebar: the list of saved conversations -->
+        <aside id="sidebar" class="sidebar" aria-label="Conversations">
+            <div class="sidebar-header">
+                <h2>Chats</h2>
+                <button type="button" id="new-chat-button" class="new-chat-button">+ New chat</button>
             </div>
-        </header>
+            <ul id="conversation-list" class="conversation-list"></ul>
+            <p id="conversation-empty" class="conversation-empty">No saved chats yet.</p>
+        </aside>
 
-        <!-- The area where chat messages appear -->
-        <main id="messages" class="messages">
-            <div class="message bot">
-                <div class="bubble">Hi! I'm your AI assistant. Ask me anything.</div>
-            </div>
-           
-        </main>
+        <!-- On phones: a dark layer behind the open sidebar. Tapping it closes the sidebar. -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
-        <!-- The input box and send button -->
-        <form id="chat-form" class="chat-input">
-            <textarea
-                id="message-input"
-                placeholder="Type your message..."
-                rows="1"
-                maxlength="4000"
-                required
-            ></textarea>
-            <button type="submit" id="send-button">Send</button>
-        </form>
+        <!-- The chat itself -->
+        <section class="chat-main">
+            <header class="chat-header">
+                <button
+                    type="button"
+                    id="menu-button"
+                    class="menu-button"
+                    aria-label="Show conversations"
+                    aria-controls="sidebar"
+                    aria-expanded="false"
+                >☰</button>
+                <div class="bot-avatar">🤖</div>
+                <div>
+                    <h1>AI Assistant</h1>
+                    <p class="status" id="status">Online</p>
+                </div>
+            </header>
+
+            <main id="messages" class="messages">
+                <div class="message bot">
+                    <div class="bubble">Hi! I'm your AI assistant. Ask me anything.</div>
+                </div>
+            </main>
+
+            <form id="chat-form" class="chat-input">
+                <textarea
+                    id="message-input"
+                    placeholder="Type your message..."
+                    rows="1"
+                    maxlength="4000"
+                    required
+                ></textarea>
+                <button type="submit" id="send-button">Send</button>
+            </form>
+        </section>
 
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-    <script src="script.js?v=6"></script>
-     
+    <script src="script.js?v=8"></script>
 </body>
 </html>

@@ -2,9 +2,24 @@
 schemas.py - Defines the shape of data going in and out of our API.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+
+def ensure_utc(value: datetime) -> datetime:
+    """
+    All our times are saved in UTC, but SQLite forgets the timezone.
+    Mark times without a timezone as UTC, so browsers convert them correctly.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+# A datetime that is always sent out with its UTC timezone attached
+UtcDatetime = Annotated[datetime, AfterValidator(ensure_utc)]
 
 
 class ChatRequest(BaseModel):
@@ -19,7 +34,7 @@ class ChatRequest(BaseModel):
     )
     conversation_id: str | None = Field(
         default=None,
-        pattern=r"^[0-9a-f]{32}$",  # must look like one of our IDs, nothing else
+        pattern=r"^[0-9a-f]{32}$",
         description="Leave empty to start a new conversation",
     )
 
@@ -34,11 +49,11 @@ class ChatResponse(BaseModel):
 class MessageOut(BaseModel):
     """One saved message, as sent to the frontend."""
 
-    model_config = ConfigDict(from_attributes=True)  # can be built from a database object
+    model_config = ConfigDict(from_attributes=True)
 
     role: str
     content: str
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class ConversationSummary(BaseModel):
@@ -48,7 +63,7 @@ class ConversationSummary(BaseModel):
 
     id: str
     title: str
-    updated_at: datetime
+    updated_at: UtcDatetime
 
 
 class ConversationDetail(ConversationSummary):

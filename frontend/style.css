@@ -166,3 +166,194 @@
 .copy-button:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+
+/* ================================================================
+   Sidebar layout (Step 18)
+   These rules come last, so they override earlier ones where they
+   overlap (e.g. .chat-app and .new-chat-button).
+   ================================================================ */
+
+/* Sidebar and chat side by side */
+.chat-app {
+    flex-direction: row;
+    max-width: 1100px;
+}
+
+.chat-main {
+    flex: 1;
+    min-width: 0; /* lets long content shrink instead of stretching the layout */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+    width: 270px;
+    flex-shrink: 0;
+    background: #f7f8fb;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* New chat button now lives in the light sidebar, so restyle it */
+.new-chat-button {
+    margin-left: 0;
+    background: var(--primary);
+    color: white;
+    border: none;
+}
+
+.new-chat-button:hover {
+    background: var(--primary-dark);
+}
+
+.new-chat-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== Conversation list ===== */
+.conversation-list {
+    list-style: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+    margin-bottom: 2px;
+}
+
+.conversation-item:hover {
+    background: #eceef4;
+}
+
+.conversation-item.active {
+    background: #e0e7ff;
+}
+
+.conversation-open {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 9px 6px 9px 12px;
+    font: inherit;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.conversation-title {
+    display: block;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* long titles end with "..." */
+}
+
+.conversation-date {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+/* Rename and delete buttons: hidden until you hover the chat */
+.conversation-action {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    opacity: 0;
+}
+
+.conversation-item:hover .conversation-action,
+.conversation-item.active .conversation-action,
+.conversation-action:focus-visible {
+    opacity: 1;
+}
+
+.conversation-action:hover {
+    background: rgba(0, 0, 0, 0.07);
+}
+
+.conversation-empty {
+    padding: 16px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* Touch screens have no hover, so always show the buttons there */
+@media (hover: none) {
+    .conversation-action {
+        opacity: 1;
+    }
+}
+
+/* ===== Menu button (only on small screens) ===== */
+.menu-button {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px 6px;
+    cursor: pointer;
+}
+
+/* ===== Small screens: sidebar slides in from the left ===== */
+@media (max-width: 799px) {
+    .menu-button {
+        display: block;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 20;                    /* above the chat */
+        transform: translateX(-100%);   /* moved fully off-screen to the left */
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);       /* slide into view */
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;                       /* cover the whole screen */
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 10;                    /* between the chat and the sidebar */
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar {
+        transition: none;
+    }
+}
