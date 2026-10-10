@@ -36,3 +36,10 @@ if not LLM_API_KEY or LLM_API_KEY == "your-api-key-here":
 def masked_key() -> str:
     """Return a safe version of the key for printing, e.g. 'sk-proj...a1b2'."""
     return f"{LLM_API_KEY[:7]}...{LLM_API_KEY[-4:]}"
+
+# Database location. Defaults to a SQLite file inside the backend folder.
+# Later, for MySQL/PostgreSQL, set DATABASE_URL in .env instead.
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"sqlite:///{(BACKEND_DIR / 'chatbot.db').as_posix()}",
+)

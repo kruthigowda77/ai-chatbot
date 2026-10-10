@@ -1,3 +1,7 @@
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
 """
 main.py - The FastAPI web server. Defines the API endpoints
 and serves the frontend.
@@ -13,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
+from app.db.database import init_db
 from app.schemas import ChatRequest, ChatResponse
 from app.services.llm import LLMServiceError, get_ai_reply, stream_ai_reply
 
@@ -27,11 +32,22 @@ logger = logging.getLogger(__name__)
 # How many earlier messages to send to the AI with each request.
 MAX_HISTORY_MESSAGES = 20
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Code that runs when the server starts (before yield) and stops (after yield)."""
+    init_db()
+    logger.info("Database ready at %s", config.DATABASE_URL)
+    yield
+
+
 app = FastAPI(
     title="AI Chatbot API",
     description="Backend for a full-stack AI chatbot.",
-    version="0.4.0",
+    version="0.5.0",
+    lifespan=lifespan,
 )
+
+
 
 
 # ===== Error handlers =====
