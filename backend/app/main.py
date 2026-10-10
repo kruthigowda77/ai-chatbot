@@ -9,12 +9,12 @@ Run from the backend folder with:
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.schemas import ChatRequest, ChatResponse
-from app.services.llm import LLMServiceError, get_ai_reply
+from app.services.llm import LLMServiceError, get_ai_reply, stream_ai_reply
 
 # ===== Logging setup =====
 logging.basicConfig(
@@ -30,7 +30,7 @@ MAX_HISTORY_MESSAGES = 20
 app = FastAPI(
     title="AI Chatbot API",
     description="Backend for a full-stack AI chatbot.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -52,6 +52,18 @@ async def handle_unexpected_error(request: Request, exc: Exception):
     )
 
 
+# ===== Helpers =====
+
+def build_messages(request: ChatRequest) -> list[dict]:
+    """Combine the (trimmed) history and the new message into one list for the AI."""
+    recent_history = request.history[-MAX_HISTORY_MESSAGES:]
+    messages = [msg.model_dump() for msg in recent_history]
+    messages.append({"role": "user", "content": request.message})
+
+    logger.info("Chat request with %d history messages", len(recent_history))
+    return messages
+
+
 # ===== Endpoints =====
 
 @app.get("/api/health")
@@ -62,15 +74,22 @@ def health_check():
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    """Receive the new message plus earlier history, and return the AI's reply."""
-    recent_history = request.history[-MAX_HISTORY_MESSAGES:]
-    messages = [msg.model_dump() for msg in recent_history]
-    messages.append({"role": "user", "content": request.message})
-
-    logger.info("Chat request with %d history messages", len(recent_history))
-
-    reply = get_ai_reply(messages)  # may raise LLMServiceError, handled above
+    """Return the AI's complete reply in one JSON response."""
+    reply = get_ai_reply(build_messages(request))  # may raise LLMServiceError
     return ChatResponse(reply=reply)
+
+
+@app.post("/api/chat/stream")
+def chat_stream(request: ChatRequest):
+    """Return the AI's reply as plain text, sent piece by piece as it's generated."""
+    # If the AI fails to start, this raises LLMServiceError -> JSON error response.
+    text_pieces = stream_ai_reply(build_messages(request))
+
+    return StreamingResponse(
+        text_pieces,
+        media_type="text/plain; charset=utf-8",
+        headers={"X-Accel-Buffering": "no"},  # ask proxies not to hold back pieces
+    )
 
 
 # ===== Serve the frontend (must stay at the bottom) =====

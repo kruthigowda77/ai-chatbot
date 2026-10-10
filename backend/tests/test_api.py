@@ -143,3 +143,33 @@ def test_unexpected_error_hides_details(monkeypatch):
 
     assert response.status_code == 500
     assert "secret internal detail" not in response.text
+    
+
+# ===== Streaming =====
+
+def test_stream_sends_reply_pieces_in_order(monkeypatch):
+    received = []
+
+    def fake_stream(messages):
+        received.append(messages)
+        return iter(["Hel", "lo ", "Kruthi!"])  # pretend the AI sent 3 pieces
+
+    monkeypatch.setattr(main, "stream_ai_reply", fake_stream)
+
+    response = client.post("/api/chat/stream", json={"message": "Hi"})
+
+    assert response.status_code == 200
+    assert response.text == "Hello Kruthi!"  # pieces arrive joined, in order
+    assert received[0][-1] == {"role": "user", "content": "Hi"}
+
+
+def test_stream_error_before_start_returns_friendly_message(monkeypatch):
+    def failing_stream(messages):
+        raise LLMServiceError("The AI service is busy right now.", 503)
+
+    monkeypatch.setattr(main, "stream_ai_reply", failing_stream)
+
+    response = client.post("/api/chat/stream", json={"message": "Hi"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "The AI service is busy right now."}
