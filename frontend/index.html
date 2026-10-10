@@ -4,12 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chatbot</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
-    <div class="chat-app">
 
-        <!-- Sidebar: the list of saved conversations -->
+    <!-- Login / sign-up screen (shown when not logged in) -->
+    <div id="auth-screen" class="auth-screen" hidden>
+        <form id="auth-form" class="auth-card" novalidate>
+            <div class="auth-logo">🤖</div>
+            <h1 id="auth-title">Welcome back</h1>
+            <p id="auth-subtitle" class="auth-subtitle">Log in to continue your chats.</p>
+
+            <label for="auth-username">Username</label>
+            <input
+                id="auth-username"
+                name="username"
+                autocomplete="username"
+                minlength="3"
+                maxlength="30"
+                required
+            >
+
+            <label for="auth-password">Password</label>
+            <input
+                id="auth-password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                minlength="8"
+                maxlength="128"
+                required
+            >
+
+            <p id="auth-error" class="auth-error" role="alert" hidden></p>
+
+            <button type="submit" id="auth-submit" class="auth-submit">Log in</button>
+
+            <p class="auth-switch">
+                <span id="auth-switch-text">New here?</span>
+                <button type="button" id="auth-switch-button" class="link-button">Create an account</button>
+            </p>
+        </form>
+    </div>
+
+    <!-- The chat app (shown when logged in) -->
+    <div id="chat-app" class="chat-app" hidden>
+
         <aside id="sidebar" class="sidebar" aria-label="Conversations">
             <div class="sidebar-header">
                 <h2>Chats</h2>
@@ -17,12 +57,14 @@
             </div>
             <ul id="conversation-list" class="conversation-list"></ul>
             <p id="conversation-empty" class="conversation-empty">No saved chats yet.</p>
+            <div class="sidebar-footer">
+                <span id="user-name" class="user-name"></span>
+                <button type="button" id="logout-button" class="logout-button">Log out</button>
+            </div>
         </aside>
 
-        <!-- On phones: a dark layer behind the open sidebar. Tapping it closes the sidebar. -->
         <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
-        <!-- The chat itself -->
         <section class="chat-main">
             <header class="chat-header">
                 <button
@@ -40,11 +82,7 @@
                 </div>
             </header>
 
-            <main id="messages" class="messages">
-                <div class="message bot">
-                    <div class="bubble">Hi! I'm your AI assistant. Ask me anything.</div>
-                </div>
-            </main>
+            <main id="messages" class="messages"></main>
 
             <form id="chat-form" class="chat-input">
                 <textarea
@@ -62,6 +100,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=9"></script>
 </body>
 </html>

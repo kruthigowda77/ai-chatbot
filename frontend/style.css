@@ -357,3 +357,152 @@
         transition: none;
     }
 }
+
+/* ================================================================
+   Accounts (Step 19)
+   ================================================================ */
+
+/* Make the "hidden" attribute always win, even over display: flex rules */
+[hidden] {
+    display: none !important;
+}
+
+/* ===== Login / sign-up screen ===== */
+.auth-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--bg);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auth-logo {
+    font-size: 40px;
+    text-align: center;
+}
+
+.auth-card h1 {
+    text-align: center;
+    font-size: 22px;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.auth-card label {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+.auth-card input {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 15px;
+    outline: none;
+}
+
+.auth-card input:focus {
+    border-color: var(--primary);
+}
+
+.auth-error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+.auth-submit {
+    margin-top: 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 11px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.auth-submit:hover {
+    background: var(--primary-dark);
+}
+
+.auth-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-switch {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 8px;
+}
+
+.link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--primary);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* ===== Sidebar footer: username and log out ===== */
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.user-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout-button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.logout-button:hover {
+    background: #eceef4;
+}

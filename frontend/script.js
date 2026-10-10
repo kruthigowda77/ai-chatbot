@@ -1,6 +1,21 @@
-console.log("script.js v8 loaded (sidebar)");
+console.log("script.js v9 loaded (user accounts)");
 
-// ===== Find the page elements we need =====
+// ===== Page elements =====
+
+// Login screen
+const authScreen = document.getElementById("auth-screen");
+const authForm = document.getElementById("auth-form");
+const authTitle = document.getElementById("auth-title");
+const authSubtitle = document.getElementById("auth-subtitle");
+const authUsername = document.getElementById("auth-username");
+const authPassword = document.getElementById("auth-password");
+const authError = document.getElementById("auth-error");
+const authSubmit = document.getElementById("auth-submit");
+const authSwitchText = document.getElementById("auth-switch-text");
+const authSwitchButton = document.getElementById("auth-switch-button");
+
+// Chat app
+const chatApp = document.getElementById("chat-app");
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("message-input");
@@ -12,41 +27,78 @@ const sidebarBackdrop = document.getElementById("sidebar-backdrop");
 const menuButton = document.getElementById("menu-button");
 const conversationListEl = document.getElementById("conversation-list");
 const conversationEmptyEl = document.getElementById("conversation-empty");
+const userNameEl = document.getElementById("user-name");
+const logoutButton = document.getElementById("logout-button");
 
+// ===== Addresses and settings =====
+const REGISTER_URL = "/api/auth/register";
+const LOGIN_URL = "/api/auth/login";
+const ME_URL = "/api/auth/me";
 const CHAT_STREAM_URL = "/api/chat/stream";
 const CONVERSATIONS_URL = "/api/conversations";
 const REQUEST_TIMEOUT_MS = 60000;
 const WELCOME_MESSAGE = "Hi! I'm your AI assistant. Ask me anything.";
 
-// ===== Which conversation is open =====
-// Messages live in the database; the browser only remembers the open chat's ID.
-const STORAGE_KEY = "chatbot.conversationId";
-let conversationId = null;
-let conversations = []; // the latest list from the server, for the sidebar
+const TOKEN_KEY = "chatbot.token";
+const CONVERSATION_KEY = "chatbot.conversationId";
 
-function setConversationId(id) {
-    conversationId = id;
-    try {
-        if (id) {
-            localStorage.setItem(STORAGE_KEY, id);
-        } else {
-            localStorage.removeItem(STORAGE_KEY);
-        }
-    } catch {
-        // Storage can be blocked (e.g. private browsing); the app still works without it
-    }
-}
 
-function getSavedConversationId() {
+// ===== Browser storage (wrapped in try/catch: it can be blocked) =====
+
+function storageGet(key) {
     try {
-        return localStorage.getItem(STORAGE_KEY);
+        return localStorage.getItem(key);
     } catch {
         return null;
     }
 }
 
+function storageSet(key, value) {
+    try {
+        if (value === null || value === undefined) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, value);
+        }
+    } catch {
+        // The app still works without storage; you just won't stay logged in
+    }
+}
+
+
+// ===== App state =====
+let authToken = storageGet(TOKEN_KEY);
+let authMode = "login";
+let conversationId = null;
+let conversations = [];
+
+function setConversationId(id) {
+    conversationId = id;
+    storageSet(CONVERSATION_KEY, id);
+}
+
 function isBusy() {
-    return sendButton.disabled; // true while a reply is streaming
+    return sendButton.disabled;
+}
+
+
+// ===== Talking to the API while logged in =====
+async function apiFetch(url, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401 && authToken) {
+        logout("Your session has expired. Please log in again.");
+        const error = new Error("Please log in again.");
+        error.authError = true;
+        throw error;
+    }
+
+    return response;
 }
 
 
@@ -145,8 +197,9 @@ function removeMessage(bubble) {
     bubble.parentElement.remove();
 }
 
-function clearChat() {
+function showWelcome() {
     messagesEl.replaceChildren();
+    addBotMessage(WELCOME_MESSAGE);
 }
 
 function setStatus(text) {
@@ -175,6 +228,121 @@ async function getErrorMessage(response) {
 }
 
 
+// ===== Login and sign-up =====
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const isLogin = mode === "login";
+
+    authTitle.textContent = isLogin ? "Welcome back" : "Create your account";
+    authSubtitle.textContent = isLogin
+        ? "Log in to continue your chats."
+        : "Sign up to save your chats.";
+    authSubmit.textContent = isLogin ? "Log in" : "Create account";
+    authSwitchText.textContent = isLogin ? "New here?" : "Already have an account?";
+    authSwitchButton.textContent = isLogin ? "Create an account" : "Log in";
+    authPassword.autocomplete = isLogin ? "current-password" : "new-password";
+
+    showAuthError(null);
+}
+
+function showAuthError(message) {
+    authError.textContent = message || "";
+    authError.hidden = !message;
+}
+
+function showAuthScreen(message) {
+    chatApp.hidden = true;
+    authScreen.hidden = false;
+    setAuthMode("login");
+    if (message) {
+        showAuthError(message);
+    }
+    authUsername.focus();
+}
+
+function validateAuthInput(username, password) {
+    if (!/^[A-Za-z0-9_.-]{3,30}$/.test(username)) {
+        return "Usernames are 3-30 characters: letters, numbers, and _ . - only.";
+    }
+    if (password.length < 8) {
+        return "Passwords must be at least 8 characters.";
+    }
+    return null;
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+
+    const username = authUsername.value.trim();
+    const password = authPassword.value;
+
+    const problem = validateAuthInput(username, password);
+    if (problem) {
+        showAuthError(problem);
+        return;
+    }
+
+    authSubmit.disabled = true;
+    showAuthError(null);
+
+    try {
+        const response = await fetch(authMode === "login" ? LOGIN_URL : REGISTER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response));
+        }
+
+        const data = await response.json();
+        authToken = data.access_token;
+        storageSet(TOKEN_KEY, authToken);
+        authForm.reset();
+
+        await enterChat(data.username);
+    } catch (error) {
+        const message = error instanceof TypeError
+            ? "Can't reach the server. Please check that it's running."
+            : error.message;
+        showAuthError(message);
+    } finally {
+        authSubmit.disabled = false;
+    }
+}
+
+async function enterChat(username) {
+    userNameEl.textContent = username;
+    authScreen.hidden = true;
+    chatApp.hidden = false;
+
+    showWelcome();
+
+    const savedId = storageGet(CONVERSATION_KEY);
+    if (savedId) {
+        await loadConversation(savedId);
+    }
+    await refreshConversationList();
+    input.focus();
+}
+
+function logout(message) {
+    authToken = null;
+    storageSet(TOKEN_KEY, null);
+    setConversationId(null);
+
+    conversations = [];
+    renderConversationList();
+    showWelcome();
+    userNameEl.textContent = "";
+    closeSidebar();
+
+    showAuthScreen(message);
+}
+
+
 // ===== Sidebar: open and close (on phones) =====
 
 function openSidebar() {
@@ -192,7 +360,6 @@ function closeSidebar() {
 
 // ===== Sidebar: the conversation list =====
 
-// "9:42 PM" for today, "9 Oct" for older days, shown in the user's local time
 function formatDate(isoString) {
     const date = new Date(isoString);
     const now = new Date();
@@ -202,17 +369,19 @@ function formatDate(isoString) {
     return date.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
-// Ask the server for the latest list, then redraw the sidebar
 async function refreshConversationList() {
+    if (!authToken) return;
     try {
-        const response = await fetch(CONVERSATIONS_URL);
+        const response = await apiFetch(CONVERSATIONS_URL);
         if (!response.ok) {
             throw new Error(await getErrorMessage(response));
         }
         conversations = await response.json();
         renderConversationList();
     } catch (error) {
-        console.error("Couldn't load the conversation list:", error);
+        if (!error.authError) {
+            console.error("Couldn't load the conversation list:", error);
+        }
     }
 }
 
@@ -224,15 +393,14 @@ function renderConversationList() {
         const item = document.createElement("li");
         item.className = "conversation-item";
 
-        // The main clickable area: title and date
         const openButton = document.createElement("button");
         openButton.type = "button";
         openButton.className = "conversation-open";
 
         const title = document.createElement("span");
         title.className = "conversation-title";
-        title.textContent = convo.title; // textContent: titles come from user input
-        title.title = convo.title;       // full title appears on hover
+        title.textContent = convo.title;
+        title.title = convo.title;
 
         const date = document.createElement("span");
         date.className = "conversation-date";
@@ -246,7 +414,6 @@ function renderConversationList() {
             openButton.setAttribute("aria-current", "true");
         }
 
-        // Rename button
         const renameButton = document.createElement("button");
         renameButton.type = "button";
         renameButton.className = "conversation-action";
@@ -255,7 +422,6 @@ function renderConversationList() {
         renameButton.title = "Rename";
         renameButton.addEventListener("click", () => renameConversation(convo));
 
-        // Delete button
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.className = "conversation-action";
@@ -275,26 +441,25 @@ function renderConversationList() {
 async function switchConversation(id) {
     if (isBusy()) return;
     closeSidebar();
-    if (id === conversationId) return; // already open
+    if (id === conversationId) return;
 
     await loadConversation(id);
-    renderConversationList(); // move the highlight to the newly opened chat
+    renderConversationList();
 }
 
 function startNewChat() {
     if (isBusy()) return;
 
-    setConversationId(null); // the next message will create a new conversation
-    clearChat();
-    addBotMessage(WELCOME_MESSAGE);
-    renderConversationList(); // no chat is highlighted now
+    setConversationId(null);
+    showWelcome();
+    renderConversationList();
     closeSidebar();
     input.focus();
 }
 
 async function loadConversation(id) {
     try {
-        const response = await fetch(`${CONVERSATIONS_URL}/${encodeURIComponent(id)}`);
+        const response = await apiFetch(`${CONVERSATIONS_URL}/${encodeURIComponent(id)}`);
 
         if (response.status === 404) {
             setConversationId(null);
@@ -306,8 +471,7 @@ async function loadConversation(id) {
 
         const conversation = await response.json();
 
-        clearChat();
-        addBotMessage(WELCOME_MESSAGE);
+        showWelcome();
         for (const msg of conversation.messages) {
             if (msg.role === "user") {
                 addMessage(msg.content, "user");
@@ -318,6 +482,7 @@ async function loadConversation(id) {
         setConversationId(conversation.id);
         scrollToBottom();
     } catch (error) {
+        if (error.authError) return;
         console.error("Failed to load conversation:", error);
         addMessage("Couldn't load that chat. Please try again.", "bot", true);
     }
@@ -325,13 +490,13 @@ async function loadConversation(id) {
 
 async function renameConversation(convo) {
     const newTitle = prompt("Rename chat:", convo.title);
-    if (newTitle === null) return; // the user pressed Cancel
+    if (newTitle === null) return;
 
     const title = newTitle.trim().slice(0, 200);
     if (!title || title === convo.title) return;
 
     try {
-        const response = await fetch(`${CONVERSATIONS_URL}/${encodeURIComponent(convo.id)}`, {
+        const response = await apiFetch(`${CONVERSATIONS_URL}/${encodeURIComponent(convo.id)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title }),
@@ -341,7 +506,9 @@ async function renameConversation(convo) {
         }
         await refreshConversationList();
     } catch (error) {
-        alert(error.message);
+        if (!error.authError) {
+            alert(error.message);
+        }
     }
 }
 
@@ -350,20 +517,21 @@ async function deleteConversation(convo) {
     if (!confirm(`Delete "${convo.title}"? This can't be undone.`)) return;
 
     try {
-        const response = await fetch(`${CONVERSATIONS_URL}/${encodeURIComponent(convo.id)}`, {
+        const response = await apiFetch(`${CONVERSATIONS_URL}/${encodeURIComponent(convo.id)}`, {
             method: "DELETE",
         });
-        // 404 means it was already gone, which is fine
         if (!response.ok && response.status !== 404) {
             throw new Error(await getErrorMessage(response));
         }
 
         if (convo.id === conversationId) {
-            startNewChat(); // the open chat was deleted
+            startNewChat();
         }
         await refreshConversationList();
     } catch (error) {
-        alert(error.message);
+        if (!error.authError) {
+            alert(error.message);
+        }
     }
 }
 
@@ -379,7 +547,7 @@ async function streamMessage(text) {
 
         let response;
         try {
-            response = await fetch(CHAT_STREAM_URL, {
+            response = await apiFetch(CHAT_STREAM_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: text, conversation_id: conversationId }),
@@ -387,6 +555,7 @@ async function streamMessage(text) {
             });
         } catch (error) {
             removeMessage(bubble);
+            if (error.authError) throw error;
             if (error.name === "AbortError") {
                 throw new Error("The request took too long. Please try again.");
             }
@@ -443,6 +612,18 @@ async function streamMessage(text) {
 
 // ===== Events =====
 
+authForm.addEventListener("submit", handleAuthSubmit);
+
+authSwitchButton.addEventListener("click", () => {
+    setAuthMode(authMode === "login" ? "register" : "login");
+    authUsername.focus();
+});
+
+logoutButton.addEventListener("click", () => {
+    if (isBusy()) return;
+    logout();
+});
+
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -461,14 +642,17 @@ form.addEventListener("submit", async (event) => {
     try {
         await streamMessage(text);
     } catch (error) {
-        console.error("Chat error:", error);
-        addMessage(error.message, "bot", true);
+        if (!error.authError) {
+            console.error("Chat error:", error);
+            addMessage(error.message, "bot", true);
+        }
     } finally {
         sendButton.disabled = false;
         newChatButton.disabled = false;
-        input.focus();
-        // A new chat may have been created, or this one moved to the top
-        refreshConversationList();
+        if (authToken) {
+            input.focus();
+            refreshConversationList();
+        }
     }
 });
 
@@ -504,13 +688,25 @@ function resizeInput() {
 input.addEventListener("input", resizeInput);
 
 
-// ===== On page load =====
+// ===== On page load: are we already logged in? =====
 async function init() {
-    const savedId = getSavedConversationId();
-    if (savedId) {
-        await loadConversation(savedId); // reopen the last chat first...
+    if (!authToken) {
+        showAuthScreen();
+        return;
     }
-    await refreshConversationList();     // ...so the sidebar can highlight it
+
+    try {
+        const response = await apiFetch(ME_URL);
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response));
+        }
+        const user = await response.json();
+        await enterChat(user.username);
+    } catch (error) {
+        if (!error.authError) {
+            showAuthScreen("Couldn't connect to the server. Please try again.");
+        }
+    }
 }
 
 init();
