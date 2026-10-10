@@ -13,11 +13,15 @@ from app import config
 from app.schemas import ChatRequest, ChatResponse
 from app.services.llm import get_ai_reply
 
+# How many earlier messages to send to the AI with each request.
+# Keeps requests fast and cheap. 20 messages = the last 10 back-and-forth exchanges.
+MAX_HISTORY_MESSAGES = 20
+
 # Create the web application.
 app = FastAPI(
     title="AI Chatbot API",
     description="Backend for a full-stack AI chatbot.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -30,10 +34,19 @@ def health_check():
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     """
-    Receive one user message and return the AI's reply.
-    (No memory yet: each message is answered on its own.)
+    Receive the user's new message plus earlier conversation history,
+    and return the AI's reply.
     """
-    messages = [{"role": "user", "content": request.message}]
+    # Keep only the most recent messages.
+    recent_history = request.history[-MAX_HISTORY_MESSAGES:]
+
+    # Convert each ChatMessage object into a plain dictionary,
+    # e.g. {"role": "user", "content": "Hi"}
+    messages = [msg.model_dump() for msg in recent_history]
+
+    # Add the new message at the end.
+    messages.append({"role": "user", "content": request.message})
+
     reply = get_ai_reply(messages)
     return ChatResponse(reply=reply)
 

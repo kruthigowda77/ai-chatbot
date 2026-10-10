@@ -1,3 +1,4 @@
+console.log("script.js v2 loaded (with memory)");
 // ===== Find the page elements we need (using the ids from index.html) =====
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chat-form");
@@ -7,10 +8,16 @@ const sendButton = document.getElementById("send-button");
 // The backend endpoint. A relative path works because FastAPI serves this page.
 const API_URL = "/api/chat";
 
+// ===== Conversation memory =====
+// Every successful exchange is stored here, oldest first, like:
+// [{ role: "user", content: "Hi" }, { role: "assistant", content: "Hello!" }, ...]
+// It lives in the browser's memory, so it resets when the page is refreshed.
+const history = [];
+const MAX_HISTORY_MESSAGES = 20; // must match the backend
+
 
 // ===== Add a message bubble to the chat =====
 function addMessage(text, sender) {
-    // Build: <div class="message user|bot"><div class="bubble">text</div></div>
     const messageEl = document.createElement("div");
     messageEl.className = `message ${sender}`;
 
@@ -21,54 +28,68 @@ function addMessage(text, sender) {
     messageEl.appendChild(bubble);
     messagesEl.appendChild(messageEl);
 
-    // Scroll down so the newest message is visible
     messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 
-// ===== Send a message to the backend and return the AI's reply =====
+// ===== Send a message (plus history) to the backend =====
 async function sendMessage(text) {
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+            message: text,
+            history: history, // the conversation so far
+        }),
     });
 
     if (!response.ok) {
         throw new Error(`Server responded with status ${response.status}`);
     }
 
-    const data = await response.json(); // e.g. { reply: "Hello!" }
+    const data = await response.json();
     return data.reply;
+}
+
+
+// ===== Remember one exchange, keeping only the most recent messages =====
+function rememberExchange(userText, botReply) {
+    history.push({ role: "user", content: userText });
+    history.push({ role: "assistant", content: botReply });
+
+    // Drop the oldest messages if we're over the limit
+    while (history.length > MAX_HISTORY_MESSAGES) {
+        history.shift(); // removes the first (oldest) item
+    }
 }
 
 
 // ===== What happens when the user clicks Send (or presses Enter) =====
 form.addEventListener("submit", async (event) => {
-    event.preventDefault(); // stop the browser from reloading the page
+    event.preventDefault();
 
-    if (sendButton.disabled) return; // a request is already in progress
+    if (sendButton.disabled) return;
 
     const text = input.value.trim();
-    if (!text) return; // ignore empty messages
+    if (!text) return;
 
-    // 1. Show the user's message and clear the input box
     addMessage(text, "user");
     input.value = "";
     resizeInput();
 
-    // 2. Disable the button while waiting, to prevent double-sending
     sendButton.disabled = true;
 
     try {
-        // 3. Ask the backend, then show the reply
         const reply = await sendMessage(text);
         addMessage(reply, "bot");
+
+        // Only remember exchanges that succeeded, so failed messages
+        // don't confuse the AI later.
+        rememberExchange(text, reply);
     } catch (error) {
         console.error("Chat error:", error);
         addMessage("Sorry, something went wrong. Please try again.", "bot");
     } finally {
-        // 4. Re-enable the button whether it worked or failed
         sendButton.disabled = false;
         input.focus();
     }
