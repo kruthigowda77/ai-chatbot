@@ -10,39 +10,44 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Build the path to backend/.env, no matter where the program is started from.
-# __file__ is this file (backend/app/config.py).
-# .parent is backend/app, and .parent again is backend.
+# backend/app/config.py -> backend/app -> backend
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BACKEND_DIR / ".env"
 
 # Read the .env file and load its values as environment variables.
 load_dotenv(ENV_FILE)
 
-# Read each setting. os.getenv returns None if the setting is missing,
-# or the default value if we provide one.
+
+# ===== AI model =====
 LLM_API_KEY = os.getenv("LLM_API_KEY")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-5.4-mini")
+LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL") or None  # empty text becomes None
 
+# The model that turns text into embeddings (lists of numbers) for document search
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
+
 # Fail fast: stop immediately with a helpful message if the key is missing.
-if not LLM_API_KEY or LLM_API_KEY == "your-api-key-here":
+PLACEHOLDER_KEYS = {"your-api-key-here", "sk-proj-paste-your-real-key-here"}
+if not LLM_API_KEY or LLM_API_KEY in PLACEHOLDER_KEYS:
     raise RuntimeError(
         f"LLM_API_KEY is missing. Make sure the file {ENV_FILE} exists "
-         "and contains your real key, like: LLM_API_KEY=AIza... (Gemini) or sk-proj-... (OpenAI)"
+        "and contains your real key, like: LLM_API_KEY=AIza... (Gemini) or sk-proj-... (OpenAI)"
     )
 
 
 def masked_key() -> str:
-    """Return a safe version of the key for printing, e.g. 'sk-proj...a1b2'."""
+    """Return a safe version of the key for printing, e.g. 'AIzaSyB...a1b2'."""
     return f"{LLM_API_KEY[:7]}...{LLM_API_KEY[-4:]}"
 
-# Database location. Defaults to a SQLite file inside the backend folder.
+
+# ===== Database =====
+# Defaults to a SQLite file inside the backend folder.
 # Later, for MySQL/PostgreSQL, set DATABASE_URL in .env instead.
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     f"sqlite:///{(BACKEND_DIR / 'chatbot.db').as_posix()}",
 )
+
 
 # ===== Login security =====
 # Signs login tokens. Must be long and random, and never shared.
@@ -56,3 +61,8 @@ if len(JWT_SECRET_KEY) < 32:
 
 # How long a login lasts before the user must log in again (default: 24 hours)
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+
+
+# ===== Document uploads =====
+# The largest file a user may upload, in megabytes
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
