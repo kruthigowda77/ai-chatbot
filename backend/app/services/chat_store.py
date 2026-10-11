@@ -19,9 +19,12 @@ def make_title(first_message: str) -> str:
         return text
     return text[: TITLE_MAX_LENGTH - 3].rstrip() + "..."
 
-
-def create_conversation(db: Session, user_id: int, first_message: str) -> Conversation:
-    conversation = Conversation(user_id=user_id, title=make_title(first_message))
+def create_conversation(
+    db: Session, user_id: int, first_message: str, personality: str = "assistant"
+) -> Conversation:
+    conversation = Conversation(
+        user_id=user_id, title=make_title(first_message), personality=personality
+    )
     db.add(conversation)
     db.commit()
     return conversation

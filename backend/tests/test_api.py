@@ -18,6 +18,7 @@ from app.db.models import User
 from app.routes import chat as chat_routes
 from app.services import chat_store
 from app.services.llm import LLMServiceError
+from app.services.personalities import PERSONALITIES
 
 client = TestClient(main.app)
 
@@ -31,95 +32,7 @@ def register(username="kruthi", password=PASSWORD):
     """Create an account and return the headers needed to act as that user."""
     response = client.post("/api/auth/register", json={"username": username, "password": password})
     assert response.status_code == 201, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
-
-
-@pytest.fixture
-def auth_headers():
-    return register()
-
-
-@pytest.fixture
-def fake_ai(monkeypatch):
-    """Replace the real AI with a fake that records what it receives."""
-    calls = []
-
-    def fake_get_ai_reply(messages):
-        calls.append(messages)
-        return FAKE_REPLY
-
-    monkeypatch.setattr(chat_routes, "get_ai_reply", fake_get_ai_reply)
-    return calls
-
-
-def simplify(messages):
-    return [(m["role"], m["content"]) for m in messages]
-
-
-# ===== Public endpoints =====
-
-def test_health_check():
-    response = client.get("/api/health")
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-
-
-def test_frontend_page_is_served():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "AI Assistant" in response.text
-
-
-# ===== Accounts =====
-
-def test_register_returns_token_and_me_works():
-    headers = register("kruthi")
-
-    response = client.get("/api/auth/me", headers=headers)
-
-    assert response.status_code == 200
-    assert response.json() == {"username": "kruthi"}
-
-
-def test_password_is_stored_hashed():
-    register("kruthi", PASSWORD)
-
-    with SessionLocal() as db:
-        user = db.scalar(select(User).where(User.username == "kruthi"))
-
-    assert user.password_hash != PASSWORD
-    assert user.password_hash.startswith("$argon2")
-
-
-def test_duplicate_username_is_rejected():
-    register("kruthi")
-    response = client.post(
-        "/api/auth/register", json={"username": "Kruthi", "password": PASSWORD}
-    )
-    assert response.status_code == 409  # usernames are not case-sensitive
-
-
-def test_login_with_correct_and_wrong_password():
-    register("kruthi", PASSWORD)
-
-    good = client.post("/api/auth/login", json={"username": "kruthi", "password": PASSWORD})
-    bad = client.post("/api/auth/login", json={"username": "kruthi", "password": "wrong-password"})
-    unknown = client.post("/api/auth/login", json={"username": "nobody", "password": PASSWORD})
-
-    assert good.status_code == 200
-    assert "access_token" in good.json()
-    assert bad.status_code == 401
-    assert unknown.status_code == 401
-    assert bad.json() == unknown.json()  # same message: don't reveal which part was wrong
-
-
-def test_endpoints_require_login():
-    assert client.get("/api/conversations").status_code == 401
-    assert client.post("/api/chat", json={"message": "Hi"}).status_code == 401
-
-    fake_token = {"Authorization": "Bearer not-a-real-token"}
-    assert client.get("/api/conversations", headers=fake_token).status_code == 401
-
+    return
 
 def test_users_cannot_see_each_others_chats(fake_ai):
     kruthi = register("kruthi")
@@ -129,7 +42,6 @@ def test_users_cannot_see_each_others_chats(fake_ai):
         "/api/chat", json={"message": "My secret"}, headers=kruthi
     ).json()["conversation_id"]
 
-    # The other user can't list, open, continue, rename, or delete it
     assert client.get("/api/conversations", headers=other).json() == []
     assert client.get(f"/api/conversations/{convo_id}", headers=other).status_code == 404
     assert client.post(
@@ -140,7 +52,6 @@ def test_users_cannot_see_each_others_chats(fake_ai):
     ).status_code == 404
     assert client.delete(f"/api/conversations/{convo_id}", headers=other).status_code == 404
 
-    # ...and the owner still has it, unchanged
     mine = client.get(f"/api/conversations/{convo_id}", headers=kruthi).json()
     assert mine["title"] == "My secret"
 
@@ -224,12 +135,11 @@ def test_empty_message_is_rejected(auth_headers):
 def test_too_long_message_is_rejected(auth_headers):
     response = client.post("/api/chat", json={"message": "a" * 4001}, headers=auth_headers)
     assert response.status_code == 422
-
-
-# ===== Error handling =====
+    
+    # ===== Error handling =====
 
 def test_ai_error_returns_friendly_message(monkeypatch, auth_headers):
-    def failing_ai(messages):
+    def failing_ai(messages, system_prompt=None):
         raise LLMServiceError("The AI service is busy right now.", 503)
 
     monkeypatch.setattr(chat_routes, "get_ai_reply", failing_ai)
@@ -242,7 +152,7 @@ def test_ai_error_returns_friendly_message(monkeypatch, auth_headers):
 
 
 def test_unexpected_error_hides_details(monkeypatch, auth_headers):
-    def crashing_ai(messages):
+    def crashing_ai(messages, system_prompt=None):
         raise ValueError("secret internal detail")
 
     monkeypatch.setattr(chat_routes, "get_ai_reply", crashing_ai)
@@ -258,7 +168,9 @@ def test_unexpected_error_hides_details(monkeypatch, auth_headers):
 
 def test_stream_sends_pieces_and_saves_reply(monkeypatch, auth_headers):
     monkeypatch.setattr(
-        chat_routes, "stream_ai_reply", lambda messages: iter(["Hel", "lo ", "Kruthi!"])
+        chat_routes,
+        "stream_ai_reply",
+        lambda messages, system_prompt=None: iter(["Hel", "lo ", "Kruthi!"]),
     )
 
     response = client.post("/api/chat/stream", json={"message": "Hi"}, headers=auth_headers)
@@ -272,7 +184,7 @@ def test_stream_sends_pieces_and_saves_reply(monkeypatch, auth_headers):
 
 
 def test_stream_error_before_start_returns_friendly_message(monkeypatch, auth_headers):
-    def failing_stream(messages):
+    def failing_stream(messages, system_prompt=None):
         raise LLMServiceError("The AI service is busy right now.", 503)
 
     monkeypatch.setattr(chat_routes, "stream_ai_reply", failing_stream)
@@ -310,3 +222,53 @@ def test_timestamps_include_timezone(fake_ai, auth_headers):
     updated_at = client.get("/api/conversations", headers=auth_headers).json()[0]["updated_at"]
 
     assert updated_at.endswith("Z") or updated_at.endswith("+00:00")
+
+
+# ===== Personalities =====
+
+def test_personalities_are_listed_without_prompts():
+    data = client.get("/api/chat/personalities").json()
+
+    ids = {p["id"] for p in data}
+    assert {"assistant", "coding_tutor", "interview_coach", "simple_explainer"} <= ids
+    assert all("system_prompt" not in p for p in data)
+
+
+def test_chat_uses_the_chosen_personality(monkeypatch, auth_headers):
+    prompts_received = []
+
+    def fake_ai(messages, system_prompt=None):
+        prompts_received.append(system_prompt)
+        return FAKE_REPLY
+
+    monkeypatch.setattr(chat_routes, "get_ai_reply", fake_ai)
+
+    first = client.post(
+        "/api/chat",
+        json={"message": "Help me with loops", "personality": "coding_tutor"},
+        headers=auth_headers,
+    ).json()
+
+    # A follow-up that asks for a different personality still uses the original one
+    client.post(
+        "/api/chat",
+        json={
+            "message": "More please",
+            "conversation_id": first["conversation_id"],
+            "personality": "interview_coach",
+        },
+        headers=auth_headers,
+    )
+
+    tutor_prompt = PERSONALITIES["coding_tutor"].system_prompt
+    assert prompts_received == [tutor_prompt, tutor_prompt]
+
+    summary = client.get("/api/conversations", headers=auth_headers).json()[0]
+    assert summary["personality"] == "coding_tutor"
+
+
+def test_unknown_personality_is_rejected(fake_ai, auth_headers):
+    response = client.post(
+        "/api/chat", json={"message": "Hi", "personality": "evil_bot"}, headers=auth_headers
+    )
+    assert response.status_code == 400

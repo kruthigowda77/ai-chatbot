@@ -22,6 +22,8 @@ def ensure_utc(value: datetime) -> datetime:
 UtcDatetime = Annotated[datetime, AfterValidator(ensure_utc)]
 
 
+# ===== Chat =====
+
 class ChatRequest(BaseModel):
     """What the frontend sends to POST /api/chat and /api/chat/stream."""
 
@@ -37,6 +39,11 @@ class ChatRequest(BaseModel):
         pattern=r"^[0-9a-f]{32}$",
         description="Leave empty to start a new conversation",
     )
+    personality: str | None = Field(
+        default=None,
+        max_length=30,
+        description="Personality ID for a NEW conversation (ignored for existing ones)",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -45,6 +52,8 @@ class ChatResponse(BaseModel):
     reply: str
     conversation_id: str
 
+
+# ===== Conversations =====
 
 class MessageOut(BaseModel):
     """One saved message, as sent to the frontend."""
@@ -63,6 +72,7 @@ class ConversationSummary(BaseModel):
 
     id: str
     title: str
+    personality: str
     updated_at: UtcDatetime
 
 
@@ -76,7 +86,7 @@ class ConversationRename(BaseModel):
     """Body for renaming a conversation."""
 
     title: str = Field(..., min_length=1, max_length=200)
-    
+
 
 # ===== Accounts =====
 
@@ -104,3 +114,14 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     username: str
+
+
+# ===== Personalities =====
+
+class PersonalityOut(BaseModel):
+    """A personality as shown to users. The system prompt is NOT included."""
+
+    id: str
+    name: str
+    emoji: str
+    description: str

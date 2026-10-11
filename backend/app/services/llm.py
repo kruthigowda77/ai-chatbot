@@ -50,11 +50,9 @@ class LLMServiceError(Exception):
         self.user_message = user_message
         self.status_code = status_code
 
-
-def _with_system_prompt(messages: list[dict]) -> list[dict]:
+def _with_system_prompt(messages: list[dict], system_prompt: str) -> list[dict]:
     """Put the system prompt in front of the conversation."""
-    return [{"role": "system", "content": SYSTEM_PROMPT}] + messages
-
+    return [{"role": "system", "content": system_prompt}] + messages
 
 def _translate_error(e: openai.APIError) -> LLMServiceError:
     """
@@ -96,8 +94,7 @@ def _translate_error(e: openai.APIError) -> LLMServiceError:
     logger.error("Unexpected AI service error: %s", e)
     return LLMServiceError("Something went wrong with the AI service. Please try again.", 502)
 
-
-def get_ai_reply(messages: list[dict]) -> str:
+def get_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> str:
     """
     Send the conversation to the AI and return the complete reply text.
     Raises LLMServiceError with a friendly message if anything goes wrong.
@@ -118,8 +115,7 @@ def get_ai_reply(messages: list[dict]) -> str:
         )
     return reply
 
-
-def stream_ai_reply(messages: list[dict]) -> Iterator[str]:
+def stream_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> Iterator[str]:
     """
     Send the conversation to the AI and return a generator that yields
     the reply in small text pieces as they arrive.
