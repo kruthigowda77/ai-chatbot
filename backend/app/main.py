@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.db.database import init_db
-from app.routes import auth, chat, conversations
+from app.routes import auth, chat, conversations, documents
 from app.services.llm import LLMServiceError
 
 # ===== Logging setup =====
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Chatbot API",
     description="Backend for a full-stack AI chatbot.",
-    version="0.7.0",
+    version="0.8.0",
     lifespan=lifespan,
 )
 
@@ -49,7 +49,7 @@ app = FastAPI(
 @app.exception_handler(LLMServiceError)
 async def handle_llm_error(request: Request, exc: LLMServiceError):
     """Turn AI service problems into a clean JSON response with a friendly message."""
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.user_message})
+    return JSONResponse(status_code=exc.status_code, content=dict(detail=exc.user_message))
 
 
 @app.exception_handler(Exception)
@@ -58,7 +58,7 @@ async def handle_unexpected_error(request: Request, exc: Exception):
     logger.exception("Unexpected error while handling %s", request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Something unexpected went wrong on the server. Please try again."},
+        content=dict(detail="Something unexpected went wrong on the server. Please try again."),
     )
 
 
@@ -67,12 +67,13 @@ async def handle_unexpected_error(request: Request, exc: Exception):
 @app.get("/api/health")
 def health_check():
     """Simple check that the server is running."""
-    return {"status": "ok", "model": config.LLM_MODEL}
+    return dict(status="ok", model=config.LLM_MODEL)
 
 
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(conversations.router)
+app.include_router(documents.router)
 
 
 # ===== Serve the frontend (must stay at the bottom) =====

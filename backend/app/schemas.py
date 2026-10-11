@@ -125,3 +125,17 @@ class PersonalityOut(BaseModel):
     name: str
     emoji: str
     description: str
+
+
+# ===== Documents =====
+
+class DocumentOut(BaseModel):
+    """An uploaded document, as shown to users (chunks and embeddings are NOT included)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    filename: str
+    num_pages: int
+    num_chunks: int
+    created_at: UtcDatetime

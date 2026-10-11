@@ -7,7 +7,7 @@ Each class is a table. Each attribute is a column.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -31,8 +31,11 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))  # never the real password
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
-    # One user has many conversations; deleting a user deletes their chats.
+    # Deleting a user deletes their chats and documents too.
     conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list["Document"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -69,3 +72,41 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+
+
+class Document(Base):
+    """A file a user uploaded. The file itself is not kept, only its text chunks."""
+
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    num_pages: Mapped[int] = mapped_column(Integer)
+    num_chunks: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    user: Mapped["User"] = relationship(back_populates="documents")
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentChunk.chunk_index",
+    )
+
+
+class DocumentChunk(Base):
+    """One small piece of a document's text, plus its embedding."""
+
+    __tablename__ = "document_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer)  # 0, 1, 2, ... in reading order
+    page: Mapped[int] = mapped_column(Integer)         # which page it came from (1-based)
+    text: Mapped[str] = mapped_column(Text)
+    # The embedding (a list of ~3,000 numbers), stored as JSON text
+    embedding: Mapped[str] = mapped_column(Text)
+
+    document: Mapped["Document"] = relationship(back_populates="chunks")
