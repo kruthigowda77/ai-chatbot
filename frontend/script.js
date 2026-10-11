@@ -1,4 +1,4 @@
-console.log("script.js v9 loaded (user accounts)");
+console.log("script.js v10 loaded (personalities)");
 
 // ===== Page elements =====
 
@@ -21,6 +21,8 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
 const statusEl = document.getElementById("status");
+const botNameEl = document.getElementById("bot-name");
+const botAvatarEl = document.getElementById("bot-avatar");
 const newChatButton = document.getElementById("new-chat-button");
 const sidebar = document.getElementById("sidebar");
 const sidebarBackdrop = document.getElementById("sidebar-backdrop");
@@ -35,9 +37,11 @@ const REGISTER_URL = "/api/auth/register";
 const LOGIN_URL = "/api/auth/login";
 const ME_URL = "/api/auth/me";
 const CHAT_STREAM_URL = "/api/chat/stream";
+const PERSONALITIES_URL = "/api/chat/personalities";
 const CONVERSATIONS_URL = "/api/conversations";
 const REQUEST_TIMEOUT_MS = 60000;
 const WELCOME_MESSAGE = "Hi! I'm your AI assistant. Ask me anything.";
+const DEFAULT_PERSONALITY = "assistant";
 
 const TOKEN_KEY = "chatbot.token";
 const CONVERSATION_KEY = "chatbot.conversationId";
@@ -69,8 +73,11 @@ function storageSet(key, value) {
 // ===== App state =====
 let authToken = storageGet(TOKEN_KEY);
 let authMode = "login";
-let conversationId = null;
-let conversations = [];
+let conversationId = null;        // the open chat
+let conversations = [];           // the sidebar list
+let personalities = [];           // the available personalities, from the server
+let selectedPersonality = DEFAULT_PERSONALITY; // chosen for the next NEW chat
+let currentPersonality = DEFAULT_PERSONALITY;  // the open chat's personality
 
 function setConversationId(id) {
     conversationId = id;
@@ -150,6 +157,79 @@ function addCopyButtons(bubble) {
 }
 
 
+// ===== Personalities =====
+
+function findPersonality(id) {
+    return personalities.find((p) => p.id === id);
+}
+
+function setHeader(personalityId) {
+    const personality = findPersonality(personalityId);
+    botNameEl.textContent = personality ? personality.name : "AI Assistant";
+    botAvatarEl.textContent = personality ? personality.emoji : "🤖";
+}
+
+async function loadPersonalities() {
+    try {
+        const response = await apiFetch(PERSONALITIES_URL);
+        if (response.ok) {
+            personalities = await response.json();
+        }
+    } catch (error) {
+        if (!error.authError) {
+            console.error("Couldn't load personalities:", error);
+        }
+    }
+}
+
+function addPersonalityPicker() {
+    const picker = document.createElement("div");
+    picker.className = "persona-picker";
+    picker.setAttribute("role", "group");
+    picker.setAttribute("aria-label", "Choose who you want to chat with");
+
+    for (const personality of personalities) {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "persona-option";
+        option.dataset.id = personality.id;
+        option.setAttribute("aria-pressed", String(personality.id === selectedPersonality));
+
+        const emoji = document.createElement("span");
+        emoji.className = "persona-emoji";
+        emoji.textContent = personality.emoji;
+
+        const text = document.createElement("span");
+        const name = document.createElement("span");
+        name.className = "persona-name";
+        name.textContent = personality.name;
+        const description = document.createElement("span");
+        description.className = "persona-description";
+        description.textContent = personality.description;
+        text.append(name, description);
+
+        option.append(emoji, text);
+        option.addEventListener("click", () => selectPersonality(personality.id));
+        picker.appendChild(option);
+    }
+
+    messagesEl.appendChild(picker);
+}
+
+function selectPersonality(id) {
+    selectedPersonality = id;
+    for (const option of messagesEl.querySelectorAll(".persona-option")) {
+        option.setAttribute("aria-pressed", String(option.dataset.id === id));
+    }
+    setHeader(id);
+    input.focus();
+}
+
+function removePersonalityPicker() {
+    messagesEl.querySelector(".persona-picker")?.remove();
+}
+
+
 // ===== Building the chat on screen =====
 
 function addMessage(text, sender, isError = false) {
@@ -200,6 +280,15 @@ function removeMessage(bubble) {
 function showWelcome() {
     messagesEl.replaceChildren();
     addBotMessage(WELCOME_MESSAGE);
+
+    if (conversationId) {
+        setHeader(currentPersonality);
+    } else {
+        if (personalities.length > 0) {
+            addPersonalityPicker();
+        }
+        setHeader(selectedPersonality);
+    }
 }
 
 function setStatus(text) {
@@ -318,6 +407,7 @@ async function enterChat(username) {
     authScreen.hidden = true;
     chatApp.hidden = false;
 
+    await loadPersonalities();
     showWelcome();
 
     const savedId = storageGet(CONVERSATION_KEY);
@@ -334,6 +424,8 @@ function logout(message) {
     setConversationId(null);
 
     conversations = [];
+    selectedPersonality = DEFAULT_PERSONALITY;
+    currentPersonality = DEFAULT_PERSONALITY;
     renderConversationList();
     showWelcome();
     userNameEl.textContent = "";
@@ -397,9 +489,10 @@ function renderConversationList() {
         openButton.type = "button";
         openButton.className = "conversation-open";
 
+        const personality = findPersonality(convo.personality);
         const title = document.createElement("span");
         title.className = "conversation-title";
-        title.textContent = convo.title;
+        title.textContent = `${personality ? personality.emoji : "💬"} ${convo.title}`;
         title.title = convo.title;
 
         const date = document.createElement("span");
@@ -451,6 +544,7 @@ function startNewChat() {
     if (isBusy()) return;
 
     setConversationId(null);
+    selectedPersonality = DEFAULT_PERSONALITY;
     showWelcome();
     renderConversationList();
     closeSidebar();
@@ -471,6 +565,9 @@ async function loadConversation(id) {
 
         const conversation = await response.json();
 
+        setConversationId(conversation.id);
+        currentPersonality = conversation.personality;
+
         showWelcome();
         for (const msg of conversation.messages) {
             if (msg.role === "user") {
@@ -479,7 +576,6 @@ async function loadConversation(id) {
                 addBotMessage(msg.content);
             }
         }
-        setConversationId(conversation.id);
         scrollToBottom();
     } catch (error) {
         if (error.authError) return;
@@ -541,6 +637,8 @@ async function streamMessage(text) {
     const bubble = addTypingIndicator();
     setStatus("Typing...");
 
+    const isNewChat = !conversationId;
+
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -550,7 +648,11 @@ async function streamMessage(text) {
             response = await apiFetch(CHAT_STREAM_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: text, conversation_id: conversationId }),
+                body: JSON.stringify({
+                    message: text,
+                    conversation_id: conversationId,
+                    personality: isNewChat ? selectedPersonality : null,
+                }),
                 signal: controller.signal,
             });
         } catch (error) {
@@ -575,6 +677,9 @@ async function streamMessage(text) {
         const returnedId = response.headers.get("X-Conversation-Id");
         if (returnedId) {
             setConversationId(returnedId);
+            if (isNewChat) {
+                currentPersonality = selectedPersonality;
+            }
         }
 
         const reader = response.body.getReader();
@@ -632,6 +737,7 @@ form.addEventListener("submit", async (event) => {
     const text = input.value.trim();
     if (!text) return;
 
+    removePersonalityPicker();
     addMessage(text, "user");
     input.value = "";
     resizeInput();

@@ -506,3 +506,56 @@
 .logout-button:hover {
     background: #eceef4;
 }
+
+/* ================================================================
+   Personality picker (Step 20)
+   ================================================================ */
+.persona-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 4px 0;
+}
+
+.persona-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    font: inherit;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.persona-option:hover {
+    border-color: var(--primary);
+}
+
+.persona-option[aria-pressed="true"] {
+    border-color: var(--primary);
+    background: #eef2ff;
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+.persona-emoji {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.persona-name {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.persona-description {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+}
