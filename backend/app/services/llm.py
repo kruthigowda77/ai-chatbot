@@ -23,7 +23,7 @@ client = OpenAI(
     max_retries=2,    # automatically retry temporary failures twice
 )
 
-# Instructions that shape the bot's personality and behavior.
+# The default instructions (used by the "Helpful Assistant" personality).
 SYSTEM_PROMPT = (
     "You are a helpful, friendly AI assistant. "
     "Give clear, accurate answers. Keep responses concise unless "
@@ -50,9 +50,11 @@ class LLMServiceError(Exception):
         self.user_message = user_message
         self.status_code = status_code
 
+
 def _with_system_prompt(messages: list[dict], system_prompt: str) -> list[dict]:
     """Put the system prompt in front of the conversation."""
-    return [{"role": "system", "content": system_prompt}] + messages
+    return [dict(role="system", content=system_prompt)] + messages
+
 
 def _translate_error(e: openai.APIError) -> LLMServiceError:
     """
@@ -94,6 +96,7 @@ def _translate_error(e: openai.APIError) -> LLMServiceError:
     logger.error("Unexpected AI service error: %s", e)
     return LLMServiceError("Something went wrong with the AI service. Please try again.", 502)
 
+
 def get_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> str:
     """
     Send the conversation to the AI and return the complete reply text.
@@ -102,7 +105,7 @@ def get_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> st
     try:
         response = client.chat.completions.create(
             model=config.LLM_MODEL,
-            messages=_with_system_prompt(messages),
+            messages=_with_system_prompt(messages, system_prompt),
         )
     except openai.APIError as e:
         raise _translate_error(e) from e
@@ -115,6 +118,7 @@ def get_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> st
         )
     return reply
 
+
 def stream_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) -> Iterator[str]:
     """
     Send the conversation to the AI and return a generator that yields
@@ -126,7 +130,7 @@ def stream_ai_reply(messages: list[dict], system_prompt: str = SYSTEM_PROMPT) ->
     try:
         stream = client.chat.completions.create(
             model=config.LLM_MODEL,
-            messages=_with_system_prompt(messages),
+            messages=_with_system_prompt(messages, system_prompt),
             stream=True,  # ask the AI to send the reply in pieces
         )
     except openai.APIError as e:
