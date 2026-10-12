@@ -44,6 +44,10 @@ class ChatRequest(BaseModel):
         max_length=30,
         description="Personality ID for a NEW conversation (ignored for existing ones)",
     )
+    use_documents: bool = Field(
+        default=False,
+        description="Answer using the user's uploaded documents (RAG)",
+    )
 
 
 class ChatResponse(BaseModel):
