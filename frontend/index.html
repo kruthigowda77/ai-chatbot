@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chatbot</title>
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -50,13 +50,31 @@
     <!-- The chat app (shown when logged in) -->
     <div id="chat-app" class="chat-app" hidden>
 
-        <aside id="sidebar" class="sidebar" aria-label="Conversations">
+        <aside id="sidebar" class="sidebar" aria-label="Conversations and documents">
             <div class="sidebar-header">
                 <h2>Chats</h2>
                 <button type="button" id="new-chat-button" class="new-chat-button">+ New chat</button>
             </div>
             <ul id="conversation-list" class="conversation-list"></ul>
             <p id="conversation-empty" class="conversation-empty">No saved chats yet.</p>
+
+            <!-- Documents (Step 21) -->
+            <section class="documents-panel" aria-labelledby="documents-heading">
+                <div class="documents-header">
+                    <h2 id="documents-heading">Documents</h2>
+                    <button type="button" id="upload-button" class="upload-button">⬆ Upload</button>
+                    <input
+                        type="file"
+                        id="file-input"
+                        accept=".pdf,.txt,.md"
+                        hidden
+                    >
+                </div>
+                <p id="upload-status" class="upload-status" role="status" hidden></p>
+                <ul id="document-list" class="document-list"></ul>
+                <p id="document-empty" class="document-empty">Upload a PDF, TXT, or MD file to ask questions about it.</p>
+            </section>
+
             <div class="sidebar-footer">
                 <span id="user-name" class="user-name"></span>
                 <button type="button" id="logout-button" class="logout-button">Log out</button>
@@ -84,6 +102,16 @@
 
             <main id="messages" class="messages"></main>
 
+            <!-- Use-my-documents switch (Step 21) -->
+            <div class="chat-tools">
+                <button
+                    type="button"
+                    id="docs-toggle"
+                    class="docs-toggle"
+                    aria-pressed="false"
+                >📄 Use my documents</button>
+            </div>
+
             <form id="chat-form" class="chat-input">
                 <textarea
                     id="message-input"
@@ -100,6 +128,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-    <script src="script.js?v=10"></script>
+    <script src="script.js?v=11"></script>
 </body>
 </html>

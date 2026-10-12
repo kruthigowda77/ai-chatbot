@@ -1,4 +1,4 @@
-console.log("script.js v10 loaded (personalities)");
+console.log("script.js v11 loaded (documents)");
 
 // ===== Page elements =====
 
@@ -32,6 +32,14 @@ const conversationEmptyEl = document.getElementById("conversation-empty");
 const userNameEl = document.getElementById("user-name");
 const logoutButton = document.getElementById("logout-button");
 
+// Documents (Step 21)
+const uploadButton = document.getElementById("upload-button");
+const fileInput = document.getElementById("file-input");
+const uploadStatusEl = document.getElementById("upload-status");
+const documentListEl = document.getElementById("document-list");
+const documentEmptyEl = document.getElementById("document-empty");
+const docsToggle = document.getElementById("docs-toggle");
+
 // ===== Addresses and settings =====
 const REGISTER_URL = "/api/auth/register";
 const LOGIN_URL = "/api/auth/login";
@@ -39,12 +47,15 @@ const ME_URL = "/api/auth/me";
 const CHAT_STREAM_URL = "/api/chat/stream";
 const PERSONALITIES_URL = "/api/chat/personalities";
 const CONVERSATIONS_URL = "/api/conversations";
+const DOCUMENTS_URL = "/api/documents";
+const MAX_UPLOAD_MB = 10; // must match the backend
 const REQUEST_TIMEOUT_MS = 60000;
 const WELCOME_MESSAGE = "Hi! I'm your AI assistant. Ask me anything.";
 const DEFAULT_PERSONALITY = "assistant";
 
 const TOKEN_KEY = "chatbot.token";
 const CONVERSATION_KEY = "chatbot.conversationId";
+const USE_DOCUMENTS_KEY = "chatbot.useDocuments";
 
 
 // ===== Browser storage (wrapped in try/catch: it can be blocked) =====
@@ -78,6 +89,8 @@ let conversations = [];           // the sidebar list
 let personalities = [];           // the available personalities, from the server
 let selectedPersonality = DEFAULT_PERSONALITY; // chosen for the next NEW chat
 let currentPersonality = DEFAULT_PERSONALITY;  // the open chat's personality
+let userDocuments = [];           // the user's uploaded documents, from the server
+let useDocuments = storageGet(USE_DOCUMENTS_KEY) === "true"; // the toggle above the input
 
 function setConversationId(id) {
     conversationId = id;
@@ -227,6 +240,126 @@ function selectPersonality(id) {
 
 function removePersonalityPicker() {
     messagesEl.querySelector(".persona-picker")?.remove();
+}
+
+
+// ===== Documents (Step 21) =====
+
+function setUseDocuments(on) {
+    useDocuments = on;
+    docsToggle.setAttribute("aria-pressed", String(on));
+    storageSet(USE_DOCUMENTS_KEY, String(on));
+}
+
+function showUploadStatus(message, isError = false) {
+    uploadStatusEl.textContent = message || "";
+    uploadStatusEl.hidden = !message;
+    uploadStatusEl.classList.toggle("error", isError);
+}
+
+async function refreshDocumentList() {
+    if (!authToken) return;
+    try {
+        const response = await apiFetch(DOCUMENTS_URL);
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response));
+        }
+        userDocuments = await response.json();
+        renderDocumentList();
+    } catch (error) {
+        if (!error.authError) {
+            console.error("Couldn't load documents:", error);
+        }
+    }
+}
+
+function renderDocumentList() {
+    documentListEl.replaceChildren();
+    documentEmptyEl.hidden = userDocuments.length > 0;
+
+    for (const doc of userDocuments) {
+        const item = document.createElement("li");
+        item.className = "document-item";
+
+        const info = document.createElement("div");
+        info.className = "document-info";
+
+        const name = document.createElement("span");
+        name.className = "document-name";
+        name.textContent = "📄 " + doc.filename; // textContent: filenames come from users
+        name.title = doc.filename;
+
+        const meta = document.createElement("span");
+        meta.className = "document-meta";
+        const pages = doc.num_pages === 1 ? "1 page" : `${doc.num_pages} pages`;
+        meta.textContent = `${pages} · ${formatDate(doc.created_at)}`;
+
+        info.append(name, meta);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "conversation-action";
+        deleteButton.textContent = "🗑";
+        deleteButton.title = "Delete";
+        deleteButton.setAttribute("aria-label", `Delete "${doc.filename}"`);
+        deleteButton.addEventListener("click", () => deleteDocument(doc));
+
+        item.append(info, deleteButton);
+        documentListEl.appendChild(item);
+    }
+}
+
+async function uploadDocument(file) {
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        showUploadStatus(`That file is too large. The limit is ${MAX_UPLOAD_MB} MB.`, true);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    uploadButton.disabled = true;
+    showUploadStatus(`Reading "${file.name}"... this can take a few seconds.`);
+
+    try {
+        // No Content-Type header here: the browser sets the right one for FormData
+        const response = await apiFetch(DOCUMENTS_URL, { method: "POST", body: formData });
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response));
+        }
+        const doc = await response.json();
+        showUploadStatus(`✅ Added "${doc.filename}" (${doc.num_chunks} sections).`);
+        setUseDocuments(true); // they probably want to ask about it now
+        await refreshDocumentList();
+    } catch (error) {
+        if (error.authError) return;
+        const message = error instanceof TypeError
+            ? "Can't reach the server. Please check that it's running."
+            : error.message;
+        showUploadStatus(message, true);
+    } finally {
+        uploadButton.disabled = false;
+        fileInput.value = ""; // allow choosing the same file again
+    }
+}
+
+async function deleteDocument(doc) {
+    if (!confirm(`Delete "${doc.filename}"? The bot won't be able to use it anymore.`)) return;
+
+    try {
+        const response = await apiFetch(`${DOCUMENTS_URL}/${encodeURIComponent(doc.id)}`, {
+            method: "DELETE",
+        });
+        if (!response.ok && response.status !== 404) {
+            throw new Error(await getErrorMessage(response));
+        }
+        showUploadStatus(null);
+        await refreshDocumentList();
+    } catch (error) {
+        if (!error.authError) {
+            alert(error.message);
+        }
+    }
 }
 
 
@@ -415,6 +548,7 @@ async function enterChat(username) {
         await loadConversation(savedId);
     }
     await refreshConversationList();
+    await refreshDocumentList();
     input.focus();
 }
 
@@ -424,6 +558,9 @@ function logout(message) {
     setConversationId(null);
 
     conversations = [];
+    userDocuments = [];
+    renderDocumentList();
+    showUploadStatus(null);
     selectedPersonality = DEFAULT_PERSONALITY;
     currentPersonality = DEFAULT_PERSONALITY;
     renderConversationList();
@@ -652,6 +789,7 @@ async function streamMessage(text) {
                     message: text,
                     conversation_id: conversationId,
                     personality: isNewChat ? selectedPersonality : null,
+                    use_documents: useDocuments,
                 }),
                 signal: controller.signal,
             });
@@ -764,6 +902,17 @@ form.addEventListener("submit", async (event) => {
 
 newChatButton.addEventListener("click", startNewChat);
 
+uploadButton.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (file) {
+        uploadDocument(file);
+    }
+});
+
+docsToggle.addEventListener("click", () => setUseDocuments(!useDocuments));
+
 menuButton.addEventListener("click", () => {
     if (sidebar.classList.contains("open")) {
         closeSidebar();
@@ -796,6 +945,8 @@ input.addEventListener("input", resizeInput);
 
 // ===== On page load: are we already logged in? =====
 async function init() {
+    setUseDocuments(useDocuments); // show the saved toggle state
+
     if (!authToken) {
         showAuthScreen();
         return;
