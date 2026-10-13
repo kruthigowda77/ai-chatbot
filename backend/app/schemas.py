@@ -48,6 +48,10 @@ class ChatRequest(BaseModel):
         default=False,
         description="Answer using the user's uploaded documents (RAG)",
     )
+    use_web: bool = Field(
+        default=False,
+        description="Search the web and use the results in the answer",
+    )
 
 
 class ChatResponse(BaseModel):

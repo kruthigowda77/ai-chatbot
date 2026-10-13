@@ -1,4 +1,4 @@
-console.log("script.js v11 loaded (documents)");
+console.log("script.js v12 loaded (web search)");
 
 // ===== Page elements =====
 
@@ -39,6 +39,7 @@ const uploadStatusEl = document.getElementById("upload-status");
 const documentListEl = document.getElementById("document-list");
 const documentEmptyEl = document.getElementById("document-empty");
 const docsToggle = document.getElementById("docs-toggle");
+const webToggle = document.getElementById("web-toggle");
 
 // ===== Addresses and settings =====
 const REGISTER_URL = "/api/auth/register";
@@ -56,6 +57,7 @@ const DEFAULT_PERSONALITY = "assistant";
 const TOKEN_KEY = "chatbot.token";
 const CONVERSATION_KEY = "chatbot.conversationId";
 const USE_DOCUMENTS_KEY = "chatbot.useDocuments";
+const USE_WEB_KEY = "chatbot.useWeb";
 
 
 // ===== Browser storage (wrapped in try/catch: it can be blocked) =====
@@ -90,7 +92,8 @@ let personalities = [];           // the available personalities, from the serve
 let selectedPersonality = DEFAULT_PERSONALITY; // chosen for the next NEW chat
 let currentPersonality = DEFAULT_PERSONALITY;  // the open chat's personality
 let userDocuments = [];           // the user's uploaded documents, from the server
-let useDocuments = storageGet(USE_DOCUMENTS_KEY) === "true"; // the toggle above the input
+let useDocuments = storageGet(USE_DOCUMENTS_KEY) === "true"; // the documents switch
+let useWeb = storageGet(USE_WEB_KEY) === "true";             // the web search switch
 
 function setConversationId(id) {
     conversationId = id;
@@ -249,6 +252,14 @@ function setUseDocuments(on) {
     useDocuments = on;
     docsToggle.setAttribute("aria-pressed", String(on));
     storageSet(USE_DOCUMENTS_KEY, String(on));
+}
+
+// ===== Web search switch (Step 22) =====
+
+function setUseWeb(on) {
+    useWeb = on;
+    webToggle.setAttribute("aria-pressed", String(on));
+    storageSet(USE_WEB_KEY, String(on));
 }
 
 function showUploadStatus(message, isError = false) {
@@ -790,6 +801,7 @@ async function streamMessage(text) {
                     conversation_id: conversationId,
                     personality: isNewChat ? selectedPersonality : null,
                     use_documents: useDocuments,
+                    use_web: useWeb,
                 }),
                 signal: controller.signal,
             });
@@ -913,6 +925,8 @@ fileInput.addEventListener("change", () => {
 
 docsToggle.addEventListener("click", () => setUseDocuments(!useDocuments));
 
+webToggle.addEventListener("click", () => setUseWeb(!useWeb));
+
 menuButton.addEventListener("click", () => {
     if (sidebar.classList.contains("open")) {
         closeSidebar();
@@ -945,7 +959,8 @@ input.addEventListener("input", resizeInput);
 
 // ===== On page load: are we already logged in? =====
 async function init() {
-    setUseDocuments(useDocuments); // show the saved toggle state
+    setUseDocuments(useDocuments); // show the saved switch states
+    setUseWeb(useWeb);
 
     if (!authToken) {
         showAuthScreen();

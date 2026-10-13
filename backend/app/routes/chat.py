@@ -1,7 +1,8 @@
 """
 routes/chat.py - Endpoints for chatting with the AI (logged-in users only).
 Conversation history is loaded from and saved to the database.
-Optionally, answers can use the user's uploaded documents (RAG).
+Optionally, answers can use the user's uploaded documents (RAG)
+and live web search results.
 """
 
 import logging
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.db.database import SessionLocal, get_db
 from app.db.models import Conversation, User
 from app.schemas import ChatRequest, ChatResponse, PersonalityOut
-from app.services import chat_store, rag
+from app.services import chat_store, rag, web_search
 from app.services.auth import get_current_user
 from app.services.llm import (
     STREAM_INTERRUPTED_MESSAGE,
@@ -52,11 +53,11 @@ class PreparedChat:
     is_new: bool
     messages: list[dict]
     system_prompt: str
-    sources_note: str  # added after the reply when documents were used ("" otherwise)
+    sources_note: str  # added after the reply when documents or the web were used
 
 
 def prepare_chat(db: Session, request: ChatRequest, user: User) -> PreparedChat:
-    """Find (or create) the conversation, load history, and search documents if asked."""
+    """Find (or create) the conversation, load history, and gather extra context if asked."""
     if request.conversation_id:
         conversation = chat_store.get_conversation(db, request.conversation_id, user.id)
         if conversation is None:
@@ -78,6 +79,7 @@ def prepare_chat(db: Session, request: ChatRequest, user: User) -> PreparedChat:
     system_prompt = personality.system_prompt
     sources_note = ""
 
+    # 1. The user's documents (RAG)
     if request.use_documents:
         try:
             results = rag.search(db, user.id, request.message)
@@ -86,14 +88,24 @@ def prepare_chat(db: Session, request: ChatRequest, user: User) -> PreparedChat:
                 chat_store.delete_conversation(db, conversation)
             raise
         system_prompt = rag.build_system_prompt(system_prompt, results)
-        sources_note = rag.format_sources(results)
+        sources_note += rag.format_sources(results)
+
+    # 2. The web. If search fails, still answer, but tell the AI it's unavailable.
+    if request.use_web:
+        try:
+            web_results = web_search.search_web(request.message)
+        except web_search.WebSearchError:
+            system_prompt = web_search.build_unavailable_prompt(system_prompt)
+        else:
+            system_prompt = web_search.build_system_prompt(system_prompt, web_results)
+            sources_note += web_search.format_sources(web_results)
 
     messages = chat_store.load_recent_messages(db, conversation.id, MAX_HISTORY_MESSAGES)
     messages.append(dict(role="user", content=request.message))
 
-    logger.info("User %s, conversation %s (%s): %d history messages, documents=%s",
+    logger.info("User %s, conversation %s (%s): %d history messages, documents=%s, web=%s",
                 user.username, conversation.id, personality.id, len(messages) - 1,
-                request.use_documents)
+                request.use_documents, request.use_web)
     return PreparedChat(conversation, is_new, messages, system_prompt, sources_note)
 
 
@@ -144,7 +156,7 @@ def chat_stream(
         reply = "".join(received)
         if reply.strip() and not reply.endswith(STREAM_INTERRUPTED_MESSAGE):
             if prepared.sources_note:
-                yield prepared.sources_note  # show which pages were used
+                yield prepared.sources_note  # show which documents or websites were used
                 reply += prepared.sources_note
             with SessionLocal() as save_db:
                 chat_store.save_exchange(save_db, conversation_id, request.message, reply)
