@@ -1,26 +1,43 @@
 /* ================================================================
-   AI Chatbot - complete stylesheet
-   One clean file for the whole app: login, sidebar, chat, documents.
+   AI Chatbot - complete stylesheet (v13 "Study Desk" design)
+   A dark green chalkboard sidebar, a calm reading area for the chat,
+   and one warm marigold color for the important buttons.
    ================================================================ */
 
-/* ===== Colors and sizes: change these to restyle the whole app ===== */
+/* ===== Colors, fonts, and sizes: change these to restyle the whole app ===== */
 :root {
-    --bg: #f7f7f8;
-    --panel: #ffffff;
-    --sidebar-bg: #f9fafb;
-    --primary: #4f46e5;
-    --primary-dark: #4338ca;
-    --primary-soft: #eef2ff;
-    --text: #1f2937;
-    --muted: #6b7280;
-    --border: #e5e7eb;
-    --bot-bubble: #f3f4f6;
-    --hover: #eef0f4;
-    --error-bg: #fef2f2;
-    --error-text: #b91c1c;
-    --error-border: #fecaca;
-    --content-width: 780px;
-    --radius: 14px;
+    /* Chalkboard (sidebar and login background) */
+    --board: #173b34;
+    --board-hover: rgba(255, 255, 255, 0.07);
+    --board-active: rgba(255, 255, 255, 0.12);
+    --board-line: rgba(255, 255, 255, 0.1);
+    --chalk: #e8efec;
+    --chalk-muted: #9db5ae;
+
+    /* Marigold: the one bright color, for key actions */
+    --marigold: #f4b942;
+    --marigold-dark: #e0a22a;
+
+    /* Reading area */
+    --canvas: #f4f6f5;
+    --paper: #ffffff;
+    --ink: #1c2623;
+    --muted: #5e6e69;
+    --line: #dde4e1;
+    --pine: #1f4f45;          /* user bubbles, links, pressed switches */
+    --pine-soft: #e3efeb;
+
+    /* Errors */
+    --error-bg: #fdf0ee;
+    --error-text: #a3321f;
+    --error-border: #f3c9c1;
+    --error-on-board: #ffb4a6;
+
+    --font-body: "Atkinson Hyperlegible", system-ui, "Segoe UI", sans-serif;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-code: "Cascadia Code", Consolas, "Courier New", monospace;
+
+    --content-width: 760px;
 }
 
 /* ===== Basics ===== */
@@ -41,21 +58,37 @@ body {
 }
 
 body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--text);
-    background: var(--bg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--canvas);
 }
 
 button {
     font: inherit;
     color: inherit;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+/* A clear keyboard focus ring everywhere */
+:focus-visible {
+    outline: 2px solid var(--pine);
+    outline-offset: 2px;
+}
+
+.sidebar :focus-visible,
+.auth-screen :focus-visible {
+    outline-color: var(--marigold);
 }
 
 
 /* ================================================================
-   Login / sign-up screen
+   Login / sign-up screen: a white card on the chalkboard
    ================================================================ */
 .auth-screen {
     position: fixed;
@@ -64,56 +97,69 @@ button {
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: var(--bg);
+    background-color: var(--board);
+    /* faint chalk dots */
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
 }
 
 .auth-card {
     width: 100%;
     max-width: 380px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 32px 28px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+    background: var(--paper);
+    border-radius: 20px;
+    padding: 36px 30px 28px;
+    box-shadow: 0 24px 60px rgba(5, 25, 20, 0.35);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .auth-logo {
-    font-size: 40px;
-    text-align: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 8px;
+    border-radius: 16px;
+    background: var(--marigold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
 }
 
 .auth-card h1 {
+    font-family: var(--font-display);
     text-align: center;
-    font-size: 22px;
+    font-size: 26px;
+    line-height: 1.2;
 }
 
 .auth-subtitle {
     text-align: center;
     color: var(--muted);
-    font-size: 14px;
-    margin-bottom: 10px;
+    font-size: 15px;
+    margin-bottom: 12px;
 }
 
 .auth-card label {
     font-size: 14px;
-    font-weight: 600;
-    margin-top: 6px;
+    font-weight: 700;
+    margin-top: 8px;
 }
 
 .auth-card input {
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--line);
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 11px 12px;
     font: inherit;
-    outline: none;
+    color: var(--ink);
+    background: var(--paper);
 }
 
 .auth-card input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-soft);
+    outline: none;
+    border-color: var(--pine);
+    box-shadow: 0 0 0 3px var(--pine-soft);
 }
 
 .auth-error {
@@ -123,54 +169,52 @@ button {
     border-radius: 8px;
     padding: 8px 10px;
     font-size: 14px;
-    margin-top: 6px;
+    margin-top: 8px;
 }
 
 .auth-submit {
-    margin-top: 12px;
-    background: var(--primary);
-    color: white;
+    margin-top: 16px;
+    background: var(--board);
+    color: var(--paper);
     border: none;
     border-radius: 10px;
-    padding: 11px;
-    font-weight: 600;
-    cursor: pointer;
+    padding: 12px;
+    font-weight: 700;
 }
 
 .auth-submit:hover {
-    background: var(--primary-dark);
+    background: var(--pine);
 }
 
 .auth-submit:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
 }
 
 .auth-switch {
     text-align: center;
     font-size: 14px;
     color: var(--muted);
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .link-button {
     background: none;
     border: none;
     padding: 0;
-    color: var(--primary);
+    color: var(--pine);
+    font-weight: 700;
     text-decoration: underline;
-    cursor: pointer;
+    text-underline-offset: 3px;
 }
 
 
 /* ================================================================
-   App layout: sidebar on the left, chat on the right, full screen
+   App layout: chalkboard sidebar on the left, chat on the right
    ================================================================ */
 .chat-app {
     display: flex;
     height: 100vh;
     height: 100dvh;
-    background: var(--panel);
 }
 
 .chat-main {
@@ -178,55 +222,65 @@ button {
     min-width: 0; /* lets long content shrink instead of widening the page */
     display: flex;
     flex-direction: column;
-    background: var(--panel);
+    background: var(--canvas);
 }
 
 
 /* ================================================================
-   Sidebar
+   Sidebar (the chalkboard)
    ================================================================ */
 .sidebar {
-    width: 280px;
+    width: 288px;
     flex-shrink: 0;
-    background: var(--sidebar-bg);
-    border-right: 1px solid var(--border);
+    background: var(--board);
+    color: var(--chalk);
     display: flex;
     flex-direction: column;
 }
 
 .sidebar-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
+    flex-direction: column;
+    gap: 18px;
+    padding: 18px 14px 10px;
 }
 
 .sidebar h2 {
-    font-size: 13px;
+    font-family: var(--font-display);
+    font-size: 15px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
+    color: var(--chalk-muted);
 }
 
+/* "New chat" is the first thing in the sidebar, full width, in marigold */
 .new-chat-button {
-    background: var(--primary);
-    color: white;
+    order: -1;
+    width: 100%;
+    background: var(--marigold);
+    color: var(--ink);
     border: none;
-    border-radius: 10px;
-    padding: 7px 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-weight: 700;
+    text-align: left;
 }
 
 .new-chat-button:hover {
-    background: var(--primary-dark);
+    background: var(--marigold-dark);
 }
 
 .new-chat-button:disabled {
     opacity: 0.5;
-    cursor: not-allowed;
+}
+
+/* Dark, thin scrollbars inside the sidebar */
+.sidebar ::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sidebar ::-webkit-scrollbar-thumb {
+    background: var(--board-line);
+    border-radius: 4px;
 }
 
 /* ----- Conversation list ----- */
@@ -236,6 +290,7 @@ button {
     min-height: 80px;
     overflow-y: auto;
     padding: 0 8px 8px;
+    scrollbar-color: var(--board-line) transparent;
 }
 
 .conversation-item {
@@ -246,11 +301,12 @@ button {
 }
 
 .conversation-item:hover {
-    background: var(--hover);
+    background: var(--board-hover);
 }
 
 .conversation-item.active {
-    background: var(--primary-soft);
+    background: var(--board-active);
+    box-shadow: inset 3px 0 0 var(--marigold);
 }
 
 .conversation-open {
@@ -259,8 +315,7 @@ button {
     text-align: left;
     background: none;
     border: none;
-    padding: 8px 6px 8px 10px;
-    cursor: pointer;
+    padding: 8px 6px 8px 12px;
 }
 
 .conversation-title {
@@ -274,7 +329,7 @@ button {
 .conversation-date {
     display: block;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--chalk-muted);
 }
 
 /* Rename / delete buttons: shown on hover */
@@ -284,8 +339,7 @@ button {
     border-radius: 6px;
     padding: 5px 6px;
     font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
+    color: var(--chalk-muted);
     opacity: 0;
 }
 
@@ -297,19 +351,20 @@ button {
 }
 
 .conversation-action:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--board-active);
+    color: var(--chalk);
 }
 
 .conversation-empty {
-    padding: 0 18px 12px;
-    font-size: 13px;
-    color: var(--muted);
+    padding: 0 16px 12px;
+    font-size: 14px;
+    color: var(--chalk-muted);
 }
 
 /* ----- Documents ----- */
 .documents-panel {
-    border-top: 1px solid var(--border);
-    padding: 12px 8px 8px;
+    border-top: 1px solid var(--board-line);
+    padding: 14px 8px 8px;
     max-height: 40%;
     display: flex;
     flex-direction: column;
@@ -319,54 +374,53 @@ button {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 8px 8px;
+    padding: 0 6px 8px;
 }
 
 .upload-button {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--board-line);
+    border-radius: 8px;
+    padding: 4px 10px;
     font-size: 13px;
-    color: var(--text);
-    cursor: pointer;
+    color: var(--chalk);
 }
 
 .upload-button:hover {
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: var(--marigold);
+    color: var(--marigold);
 }
 
 .upload-button:disabled {
     opacity: 0.5;
-    cursor: not-allowed;
 }
 
 .upload-status {
     font-size: 13px;
-    color: var(--muted);
-    padding: 0 8px 8px;
+    color: var(--chalk);
+    padding: 0 6px 8px;
 }
 
 .upload-status.error {
-    color: var(--error-text);
+    color: var(--error-on-board);
 }
 
 .document-list {
     list-style: none;
     overflow-y: auto;
+    scrollbar-color: var(--board-line) transparent;
 }
 
 .document-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 8px;
+    padding: 6px 6px 6px 8px;
     border-radius: 8px;
 }
 
 .document-item:hover {
-    background: var(--hover);
+    background: var(--board-hover);
 }
 
 .document-info {
@@ -385,13 +439,13 @@ button {
 .document-meta {
     display: block;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--chalk-muted);
 }
 
 .document-empty {
     font-size: 13px;
-    color: var(--muted);
-    padding: 0 8px 4px;
+    color: var(--chalk-muted);
+    padding: 0 6px 4px;
 }
 
 /* ----- Username and log out ----- */
@@ -400,13 +454,13 @@ button {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--border);
+    padding: 12px 14px;
+    border-top: 1px solid var(--board-line);
     font-size: 14px;
 }
 
 .user-name {
-    font-weight: 600;
+    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -414,15 +468,16 @@ button {
 
 .logout-button {
     background: none;
-    border: 1px solid var(--border);
+    border: 1px solid var(--board-line);
     border-radius: 8px;
     padding: 4px 10px;
     font-size: 13px;
-    cursor: pointer;
+    color: var(--chalk-muted);
 }
 
 .logout-button:hover {
-    background: var(--hover);
+    color: var(--chalk);
+    background: var(--board-hover);
 }
 
 
@@ -433,32 +488,45 @@ button {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--canvas);
 }
 
 .bot-avatar {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
-    border-radius: 50%;
-    background: var(--primary-soft);
+    border-radius: 12px;
+    background: var(--marigold);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 21px;
 }
 
 .chat-header h1 {
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.3;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.2;
 }
 
+/* "Online" with a small green dot */
 .status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 13px;
     color: var(--muted);
+}
+
+.status::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2f9e6e;
 }
 
 .menu-button {
@@ -468,7 +536,6 @@ button {
     font-size: 22px;
     line-height: 1;
     padding: 4px 6px;
-    cursor: pointer;
 }
 
 
@@ -478,10 +545,10 @@ button {
 .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 16px;
+    padding: 28px 16px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 18px;
 }
 
 /* Keep everything in a readable centered column */
@@ -502,28 +569,30 @@ button {
 
 .bubble {
     max-width: 85%;
-    padding: 10px 14px;
-    border-radius: 16px;
-    line-height: 1.6;
+    padding: 12px 16px;
+    line-height: 1.65;
     white-space: pre-wrap;    /* keep line breaks in plain text */
     overflow-wrap: anywhere;  /* break very long words or links */
 }
 
+/* Bot replies: a white sheet of paper, easy to read */
 .message.bot .bubble {
-    background: var(--bot-bubble);
-    border-bottom-left-radius: 4px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px 16px 16px 16px;
 }
 
+/* Your messages: dark green, on the right */
 .message.user .bubble {
-    background: var(--primary);
-    color: white;
-    border-bottom-right-radius: 4px;
+    background: var(--pine);
+    color: var(--paper);
+    border-radius: 16px 16px 4px 16px;
 }
 
 .message.bot.error .bubble {
     background: var(--error-bg);
     color: var(--error-text);
-    border: 1px solid var(--error-border);
+    border-color: var(--error-border);
 }
 
 
@@ -546,18 +615,19 @@ button {
 .bubble.markdown pre,
 .bubble.markdown blockquote,
 .bubble.markdown table {
-    margin: 0 0 10px;
+    margin: 0 0 12px;
 }
 
 .bubble.markdown h1,
 .bubble.markdown h2,
 .bubble.markdown h3 {
-    margin: 14px 0 6px;
+    font-family: var(--font-display);
+    margin: 18px 0 6px;
     line-height: 1.3;
 }
 
-.bubble.markdown h1 { font-size: 1.25em; }
-.bubble.markdown h2 { font-size: 1.15em; }
+.bubble.markdown h1 { font-size: 1.3em; }
+.bubble.markdown h2 { font-size: 1.18em; }
 .bubble.markdown h3 { font-size: 1.05em; }
 
 .bubble.markdown ul,
@@ -566,33 +636,43 @@ button {
 }
 
 .bubble.markdown li {
-    margin: 3px 0;
+    margin: 4px 0;
+}
+
+.bubble.markdown li::marker {
+    color: var(--pine);
 }
 
 .bubble.markdown a {
-    color: var(--primary);
+    color: var(--pine);
+    font-weight: 700;
     text-decoration: underline;
+    text-decoration-color: var(--marigold);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
 }
 
+/* The line above "Sources" */
 .bubble.markdown hr {
     border: none;
-    border-top: 1px solid var(--border);
-    margin: 12px 0 8px;
+    border-top: 1px dashed var(--line);
+    margin: 14px 0 10px;
 }
 
 .bubble.markdown code {
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 0.9em;
-    background: rgba(0, 0, 0, 0.07);
+    font-family: var(--font-code);
+    font-size: 0.88em;
+    background: var(--pine-soft);
+    color: var(--pine);
     padding: 1px 5px;
     border-radius: 4px;
 }
 
 .bubble.markdown pre {
     position: relative; /* so the Copy button can sit in its corner */
-    background: #1f2937;
-    color: #f9fafb;
-    padding: 34px 14px 14px;
+    background: var(--board);
+    color: var(--chalk);
+    padding: 36px 16px 16px;
     border-radius: 10px;
     overflow-x: auto;
     white-space: pre;
@@ -602,12 +682,12 @@ button {
     background: none;
     padding: 0;
     color: inherit;
-    font-size: 0.85em;
+    font-size: 0.86em;
 }
 
 .bubble.markdown blockquote {
-    border-left: 3px solid var(--border);
-    padding-left: 10px;
+    border-left: 3px solid var(--marigold);
+    padding-left: 12px;
     color: var(--muted);
 }
 
@@ -619,13 +699,13 @@ button {
 
 .bubble.markdown th,
 .bubble.markdown td {
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--line);
     padding: 6px 10px;
     text-align: left;
 }
 
 .bubble.markdown th {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--canvas);
 }
 
 .copy-button {
@@ -636,236 +716,14 @@ button {
     padding: 3px 10px;
     border: none;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.15);
-    color: #f9fafb;
-    cursor: pointer;
+    background: var(--board-active);
+    color: var(--chalk);
 }
 
 .copy-button:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--marigold);
+    color: var(--ink);
 }
 
 
-/* ----- Typing indicator (three bouncing dots) ----- */
-.typing-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 2px;
-}
-
-.typing-indicator span {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    animation: typing-bounce 1.2s infinite ease-in-out;
-}
-
-.typing-indicator span:nth-child(2) {
-    animation-delay: 0.15s;
-}
-
-.typing-indicator span:nth-child(3) {
-    animation-delay: 0.3s;
-}
-
-@keyframes typing-bounce {
-    0%, 60%, 100% {
-        transform: translateY(0);
-        opacity: 0.4;
-    }
-    30% {
-        transform: translateY(-5px);
-        opacity: 1;
-    }
-}
-
-
-/* ----- Personality picker (new chats) ----- */
-.persona-picker {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-}
-
-.persona-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    text-align: left;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px;
-    cursor: pointer;
-}
-
-.persona-option:hover {
-    border-color: var(--primary);
-}
-
-.persona-option[aria-pressed="true"] {
-    border-color: var(--primary);
-    background: var(--primary-soft);
-    box-shadow: 0 0 0 1px var(--primary);
-}
-
-.persona-emoji {
-    font-size: 22px;
-    line-height: 1;
-}
-
-.persona-name {
-    display: block;
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.persona-description {
-    display: block;
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 2px;
-    line-height: 1.4;
-}
-
-
-/* ================================================================
-   Bottom: "Use my documents" switch and the message box
-   ================================================================ */
-.chat-tools,
-.chat-input {
-    width: calc(100% - 32px);
-    max-width: var(--content-width);
-    margin: 0 auto;
-}
-
-.chat-tools {
-    display: flex;
-    gap: 8px;
-    padding: 8px 0;
-}
-
-.docs-toggle {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
-}
-
-.docs-toggle:hover {
-    border-color: var(--primary);
-}
-
-.docs-toggle[aria-pressed="true"] {
-    background: var(--primary-soft);
-    border-color: var(--primary);
-    color: var(--primary);
-    font-weight: 600;
-}
-
-/* The message box: one rounded container with the text area and Send button */
-.chat-input {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 8px;
-    margin-bottom: 16px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-}
-
-.chat-input:focus-within {
-    border-color: var(--primary);
-}
-
-.chat-input textarea {
-    flex: 1;
-    resize: none;
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 8px 6px;
-    font: inherit;
-    max-height: 160px;
-}
-
-.chat-input button {
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 9px 18px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.chat-input button:hover {
-    background: var(--primary-dark);
-}
-
-.chat-input button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-
-/* ================================================================
-   Small screens: the sidebar slides in from the left
-   ================================================================ */
-@media (max-width: 799px) {
-    .menu-button {
-        display: block;
-    }
-
-    .sidebar {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 20;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-    }
-
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .sidebar-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        z-index: 10;
-    }
-
-    .bubble {
-        max-width: 92%;
-    }
-}
-
-/* Touch screens have no hover, so always show the small buttons */
-@media (hover: none) {
-    .conversation-action {
-        opacity: 1;
-    }
-}
-
-/* Respect users who turn off animations */
-@media (prefers-reduced-motion: reduce) {
-    .typing-indicator span {
-        animation: none;
-        opacity: 0.6;
-    }
-
-    .sidebar {
-        transition: none;
-    }
-}
+/* ----- Typing
